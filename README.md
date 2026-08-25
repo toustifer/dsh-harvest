@@ -37,6 +37,8 @@
 | V2EX | `curl v2ex.com/api/topics/hot.json` | 社区 |
 | LinkedIn | `mcporter linkedin-scraper`(需登录态) | 招聘 |
 
+> **另**：`harvest_extract` 自动识别 **RSS feed**(feedparser)与**小宇宙播客** URL(Whisper 转写)，把 agent-reach 剩余 3 个平台(小宇宙/RSS/网页阅读)也纳入 —— 合计覆盖全部 13 平台。
+
 ## 📦 安装(DSH 原生)
 
 ```powershell
