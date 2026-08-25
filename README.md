@@ -33,6 +33,9 @@
 | Web / Exa | `mcporter call exa.web_search_exa` | 网页搜索 |
 | Twitter / Reddit / 小红书 | `opencli`(浏览器桥接) | 社交 |
 | YouTube | `yt-dlp ytsearchN:` | 视频 |
+| B站 | `bili search`(bili-cli) | 视频 |
+| V2EX | `curl v2ex.com/api/topics/hot.json` | 社区 |
+| LinkedIn | `mcporter linkedin-scraper`(需登录态) | 招聘 |
 
 ## 📦 安装(DSH 原生)
 
