@@ -1,0 +1,5 @@
+# dsh-harvest bundle patch
+# 把插件行插入启动树。服务名('harvest')与 patch id 需与 package.json bundle 解析一致。
+- insert:
+    - id: harvest
+      name: 'dsh-harvest'

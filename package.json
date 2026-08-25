@@ -1,0 +1,35 @@
+{
+  "name": "dsh-harvest",
+  "version": "0.1.0",
+  "description": "DSH 原生多平台调研流水线插件：harvest_scout(多平台发现)/harvest_extract(穿透抓取)/harvest_verify(交叉验证)/harvest_audit(可信度审计)。源于自研 omni-scope 方法论，零 @deepseek-ai 依赖、自包含。",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "research",
+    "multi-platform",
+    "scout",
+    "extract",
+    "verify",
+    "audit",
+    "investigation"
+  ],
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "instructions",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "license": "MIT"
+}
