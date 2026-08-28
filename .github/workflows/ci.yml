@@ -6,13 +6,30 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    name: ${{ matrix.os }}
+    # 三平台矩阵（审计 C-01 / BLOK-3）：macOS / Windows 不再「从未被 CI 验证」。
+    # fail-fast: false —— 三个平台各自独立报告，一个红不取消其它平台。
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      # 语法检查：显式列出 lib/ 全部 4 个文件。
+      # 不用 `lib/*.js` 通配：Windows runner 默认 pwsh 不对原生命令做 glob 展开，
+      # 通配会作为字面量传给 node 报 ENOENT；`&&` 链在 linux(sh) / windows(pwsh 7)
+      # 均可用（审计 C-02 确认）。
       - name: Syntax check
         run: node --check lib/index.js && node --check lib/backends.js && node --check lib/extract.js && node --check lib/http.js
+
+      # 冒烟测试：加载契约 + 执行层平台契约（T-03：平台探测 + 优雅跳过）。
+      # 注意：平台探测断言以 fix-shell-layer（审计 4.1 平台分支）为目标形态；
+      # 若 lib/ 修复未合入本分支，此步会红——这是预期的回归绊线，不是 CI 配置问题。
       - name: Smoke test
         run: node test/smoke.mjs

@@ -1,0 +1,23 @@
+{
+  "tasks": [
+    {
+      "task_id": "audit-platform",
+      "date": "2026-08-28",
+      "dag": "cross-platform",
+      "branch": "feat/cross-platform",
+      "head": "244077f",
+      "conclusion": "全量平台假设审计完成：9 通道中 5 通道（web/twitter/reddit/xiaohongshu/linkedin）因 powershell.exe + C:\\Users\\15775 硬编码垫片在 macOS/Linux 必坏（阻塞 BLOK-1/BLOK-2，根因 lib/backends.js L18-20/L97-L201）；http.js 系统代理兜底为 Windows 独占（H-02）；extract.js 有 python/python3、bash、'~' 字面量三个 unix 假设（E-01~E-03）；CI 仅 ubuntu-latest 无验证闭环（BLOK-3）。报告含逐文件清单（43 条目）+ 修复建议（平台分支 argv 直调 / curl 兜底 / os.homedir / python3 探测 / 三平台矩阵）。"
+    },
+    {
+      "task_id": "fix-shell-layer",
+      "date": "2026-08-28",
+      "dag": "cross-platform",
+      "branch": "feat/cross-platform",
+      "head": "44963f5",
+      "conclusion": "按审计 BLOK-1/BLOK-2 + 4.1-4.3 落地：①backends.js 顶部 os/path + IS_WIN + SHIM_DIR=os.homedir()/.npm-global，shimRun(cli,psExpr,argv) 统一垫片入口——win32 保留 powershell.exe 垫片（path.join 去反斜杠硬拼、psq 转义保留），非 win32 5 通道（web/twitter/reddit/xiaohongshu/linkedin）全部 argv 直调还原 c04ad96 前形态（web/linkedin 保留 --output json，opencli 通道 -f json）；「未装/失败→抛错→skipped[]」契约不变；②http.js 兜底平台分支：win32 保留 Invoke-WebRequest 哈希表，非 win32 execFile('curl',['-sS','-o','-','-w','\\n%{http_code}','-A',UA,...url])，输出按平台布局分割（curl=lastIndexOf / ps=indexOf），错误注明 curl/ps 分支；③extract.js os.homedir()||HOME||'' 去字面 ~，PY=['python3','python','py'].find(probe)，HAS_BASH 探测、无 bash 小宇宙返回 {status:'unreachable',error:'bash not available'}。index.js 审计结论平台干净，零改动。",
+      "evidence": "node --check 4/4 绿；node test/smoke.mjs 绿（含 ci-matrix 已提交的 T-03 平台契约断言：非 win32 build() 无 powershell/.ps1 泄漏、优雅跳过契约成立）；win32 分支用 Object.defineProperty(process,'platform',{value:'win32'}) + URL 查询串破 ESM 缓存模拟：5 通道保留 PS 垫片、无 15775、psq 转义正确；curl 兜底真实运行验证（macOS 本机）：本地 302 重定向环（fetch 失败 → curl 兜底拿到 302）+ 无服务端口（合并错误证实走 curl 分支非 powershell）。",
+      "limitation": "win32 为代码级论证（本机 macOS）；http.js win32 PS 分支仅在模拟下验证参数构造与分支选择（错误前缀 ps: 证明选中 PS 分支），未在真实 Windows 上执行 powershell.exe。三平台 CI 矩阵由 ci-matrix 任务（worker-ops）负责验证闭环。",
+      "ci_evidence_followup": "push feat/cross-platform c5a9f22..156723b（SSH，正常追加无 force）后 CI 自动重跑：run 33169109461 → 三平台全绿（macos-latest ✓ 8s / windows-latest ✓ 45s / ubuntu-latest ✓ 6s）。smoke 输出：darwin / win32 / linux 均为『8 通道 build() 平台契约成立，优雅跳过契约成立（4/4 探测通道记 skipped）』——windows-latest 真实运行 win32 分支（PS 垫片保留 + 无 15775 硬编码断言通过），补全验收标准第 4 条的 CI 侧两平台证据。run 链接：https://github.com/toustifer/dsh-harvest/actions/runs/33169109461"
+    }
+  ]
+}
