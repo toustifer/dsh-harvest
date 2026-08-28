@@ -1,0 +1,14 @@
+{
+  "tasks": [
+    {
+      "task_id": "ci-matrix",
+      "date": "2026-08-28",
+      "dag": "cross-platform",
+      "branch": "feat/cross-platform",
+      "head": "00556bb",
+      "conclusion": "CI 扩为三平台矩阵（ubuntu/macos/windows × node22，fail-fast:false）——ci.yml 用显式 4 文件 node --check（pwsh 不做 glob 展开，不能用 lib/*.js）+ node test/smoke.mjs。smoke.mjs 补 T-03：①平台探测断言（非 win32 无 powershell(.exe)/.ps1 泄漏、win32 无硬编码用户名 15775、统一 argv 形状 {file,args}）；②无 CLI 优雅跳过冒烟（github/youtube/bilibili/未知通道 × Promise.all+try/catch → 聚合不抛、未知通道必 skipped、原因非空）。本地验证：pre-fix lib 上平台探测按预期红（回归绊线，web/twitter/reddit/xiaohongshu/linkedin 泄漏）；fix-shell-layer 并行落 lib/backends.js 平台分支后 web 转绿，其余 4 通道待其提交；T-03-2 优雅跳过在 HEAD lib 上独立验证全过；断言双向自检（固定形态绿 / pre-fix 红）通过。",
+      "deliverable": ".github/workflows/ci.yml（三平台矩阵）+ test/smoke.mjs（T-03 断言）",
+      "limitation": "CI 实跑证据依赖 push 触发的 GitHub Actions；本机为 macOS，win32 分支断言只能在 windows-latest runner 上验证。push 时若 fix-shell-layer 尚未提交，三平台矩阵的 smoke 步将红（平台探测绊线），属预期并已在断言信息中写明，修复落分支后自动转绿。"
+    }
+  ]
+}
