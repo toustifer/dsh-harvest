@@ -11,28 +11,36 @@
       "status": "running",
       "tasks": {
         "audit-platform": {
-          "status": "executing",
+          "status": "done",
           "worker": "worker-infra",
-          "worker_agent_id": "6bfcff18-cefa-4d2b-a2f6-3b4d3a810ea5",
-          "note": "全量平台假设审计，产出 docs/platform-audit.md"
+          "worker_agent_id": "20edef6a-f8b5-4d05-b8ad-fe06172c08a5",
+          "commit": "fc2dcc9",
+          "note": "全量平台假设审计 43 条清单 + 3 阻塞项，Leader 验收通过"
         },
         "fix-shell-layer": {
-          "status": "assigned",
+          "status": "done",
           "worker": "worker-infra",
-          "depends_on": ["audit-platform"],
-          "note": "执行层跨平台化：shell 垫片/路径/进程调用"
+          "worker_agent_id": "78d37741-1f3e-45e1-9bd8-dc5beb910a54",
+          "commit": "44963f5",
+          "note": "lib/ 三平台化（shimRun 平台分支/curl 兜底/os.homedir/python3·bash 探测），Leader 验收通过"
         },
         "ci-matrix": {
-          "status": "assigned",
+          "status": "done",
           "worker": "worker-ops",
-          "depends_on": ["audit-platform"],
-          "note": "CI 三平台矩阵 ubuntu/macos/windows"
+          "worker_agent_id": "9b25d6b0-c85d-4dc0-92b6-c016c1e78cf7",
+          "commit": "00556bb",
+          "note": "CI 三平台矩阵 + smoke T-03 断言；CI 实跑 run 33168647280（三平台 syntax 全绿，smoke 绊线红→绿闭环），Leader 验收通过"
+        },
+        "ci-final-green": {
+          "status": "done",
+          "note": "fix 推送后 CI 三平台全绿最终证据：run 33169109461 与 run 33169472690 均 success（ubuntu 7s / windows 21s / macos 10s，smoke 三平台契约通过，windows 分支真实 runner 执行）；远端 tip 4eb0ff7"
         },
         "docs-cross-platform": {
-          "status": "assigned",
+          "status": "done",
           "worker": "worker-config",
-          "depends_on": ["audit-platform"],
-          "note": "README/DESIGN 三平台化"
+          "worker_agent_id": "bcddf2c7-fa18-4b32-8622-b3059b9082c4",
+          "commit": "a4a25e5",
+          "note": "README/DESIGN 三平台化，Leader 验收通过"
         }
       }
     }
