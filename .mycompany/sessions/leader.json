@@ -1,0 +1,40 @@
+{
+  "project": "dsh-harvest",
+  "namespace_id": "dsh-harvest",
+  "base_branch": "master",
+  "dags": {
+    "cross-platform": {
+      "title": "dsh-harvest 跨平台化：Windows/macOS/Linux 三平台可用",
+      "execution_branch": "feat/cross-platform",
+      "shape": ".claude/dags/cross-platform_SHAPE.md",
+      "created": "2026-08-28",
+      "status": "running",
+      "tasks": {
+        "audit-platform": {
+          "status": "executing",
+          "worker": "worker-infra",
+          "worker_agent_id": "6bfcff18-cefa-4d2b-a2f6-3b4d3a810ea5",
+          "note": "全量平台假设审计，产出 docs/platform-audit.md"
+        },
+        "fix-shell-layer": {
+          "status": "assigned",
+          "worker": "worker-infra",
+          "depends_on": ["audit-platform"],
+          "note": "执行层跨平台化：shell 垫片/路径/进程调用"
+        },
+        "ci-matrix": {
+          "status": "assigned",
+          "worker": "worker-ops",
+          "depends_on": ["audit-platform"],
+          "note": "CI 三平台矩阵 ubuntu/macos/windows"
+        },
+        "docs-cross-platform": {
+          "status": "assigned",
+          "worker": "worker-config",
+          "depends_on": ["audit-platform"],
+          "note": "README/DESIGN 三平台化"
+        }
+      }
+    }
+  }
+}
