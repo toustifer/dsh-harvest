@@ -8,7 +8,14 @@
       "execution_branch": "feat/cross-platform",
       "shape": ".claude/dags/cross-platform_SHAPE.md",
       "created": "2026-08-28",
-      "status": "running",
+      "status": "done",
+      "merge": {
+        "merge_commit": "a5eccd7",
+        "pushed": true,
+        "remote": "git@github.com:toustifer/dsh-harvest.git (origin 已从 https 切 SSH)",
+        "post_merge_verify": "master 上 node --check 4/4 + smoke 全绿（darwin 平台契约成立）",
+        "cleanup": "worktree 已移除；feat/cross-platform 本地+远程分支已删（用完即删）"
+      },
       "tasks": {
         "audit-platform": {
           "status": "done",
