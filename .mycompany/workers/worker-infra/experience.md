@@ -15,3 +15,18 @@
 ### 复用建议（跨域可复用）
 - 平台审计输出格式：文件+行号+假设+影响面+分类（阻塞/建议/不适用）+ 具体修复代码级建议，可直接作为后续修复任务的工单。
 - 「可并行 vs 必须顺序」按**文件依赖**划分（零 import 依赖的文件组可并行），而非按 worker 数量拍脑袋。
+## 2026-08-28 — fix-shell-layer（执行层跨平台化，DAG cross-platform）
+
+### 学到的模式（落地审计 4.1-4.3 时的新坑）
+- **统一垫片入口比逐通道三元更干净**：`shimRun(cli, psExpr, argv)` 一个函数收敛 5 通道的平台分支——win32 返回 `{ file:'powershell.exe', args:['-NoProfile','-Command', ...] }`，非 win32 返回 `{ file: cli, args: argv }`。每个通道只声明「PS 表达式 + Unix argv」两份形态，`IS_WIN` 只在一个点求值，测试与审查都容易。
+- **win32 侧参数一律走 argv 而非拼命令字符串**：http.js 的 PS 兜底、backends.js 的 PS 表达式都尽力保持「裸字符串参数→execFile args」形态（powershell.exe args=['-NoProfile','-Command',ps] 本身就是 argv），避免把整个命令串交 shell。真正不可避免的 shell 拼接只有 PowerShell 命令串本身（其语义就是一段脚本）。
+- **curl 兜底输出解析与 PS 相反**：`curl -w '\n%{http_code}'` 是「正文在前、状态码追加在末尾」→ 必须 `lastIndexOf('\n')` 分割；而 PowerShell `Write-Output $r.StatusCode; Write-Output $r.Content` 是「状态码在前」→ `indexOf('\n')`。同一对输出分割代码不能两平台共用（审计 H-04 只覆盖 PS 路径，curl 路径的解析顺序是本次踩坑）。
+- **header 传递要防重复**：curl 用 `-A` 已带 User-Agent，`-H 'user-agent: …'` 会造成重复 UA 头（部分站点 400）。实现上 `merged` 里排除 user-agent 再逐条 `-H`，UA 只经 `-A merged['user-agent']`（调用方覆盖的头仍生效）。
+- **探测顺序按平台现实排列**：`['python3','python','py']`（mac/linux 有 python3、Win 有 py），`.find(probe)` 命中即用；probe 用 `spawnSync(cmd,['--version'],{stdio:'ignore'})`，`status===0` 判可用，ENOENT 由 catch 兜底。bash 同理，探测一次缓存模块级常量。
+- **`~` 字面量在 execFile 里不展开**：extract.js 的 `home` 兜底从 `'~'`（无意义）改为 `os.homedir() || process.env.HOME || ''`（审计 E-01）。
+- **os.homedir() 在 mac 本机返回真实 home**，与 win32 版 `path.join(os.homedir(),'.npm-global')` 的组合在两端都得到「默认垫片目录」，不再依赖 `C:\Users\15775` 这种个人路径。验证时用 `Object.defineProperty(process,'platform',{value:'win32'})` 模拟 win32 分支的参数构造并断言——`process.platform` 可被 defineProperty 覆盖，但同一模块实例的 ESM 缓存会带着旧的 IS_WIN 快照，二次 import 需 URL 加查询串（`?win=1`）破缓存重求值。
+- **「改 lib 时 CI 绊线测试已就位」**：ci-matrix 任务的 smoke T-03 断言（非 win32 build() 不得出现 powershell/.ps1、win32 不得出现 15775）在提交前已是红 → 我提交后转绿。跨 worker 并行在共享 worktree 的收益：对方测试直接覆盖我方交付，省掉自建回归网。
+
+### 复用建议
+- 平台分支进程调用：一个 `shimRun`/`buildXxx` 入口收敛分支 + 每个通道声明两形态（PS 串 / Unix argv）→ 可移植到任何「npm 全局装法在 win 生成 .ps1、unix 生成脚本」的 CLI 封装。
+- 跨平台双路 HTTP 兜底模板：fetch 优先 → 平台分支 fallback（win=PS 系统代理 / unix=curl 环境代理）→ 输出解析按平台布局分割。curl 兜底默认自动读 https_proxy/http_proxy，无需额外代码。
