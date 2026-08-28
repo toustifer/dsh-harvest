@@ -24,3 +24,9 @@
 - `node test/smoke.mjs`：对 pre-fix lib 红（web/twitter/reddit/xiaohongshu/linkedin 泄漏 powershell.exe——预期绊线红）；fix-shell-layer 落 `lib/backends.js`（shimRun 平台分支）后 web 转绿，其余 4 通道待其继续提交后全绿。
 - T-03-2 优雅跳过契约在 HEAD lib 上独立验证通过（/tmp/t032-probe.mjs：聚合不抛 + unknown channel 进 skipped + 原因非空）。
 - 断言正确性自检：/tmp/t031-fixed-sim.mjs 用审计 4.1 固定形态模拟 → 0 泄漏（绿）；pre-fix win32 形态 → 检出 15775（红）。双向都对。
+
+### 转绿确认（fix-shell-layer 落地后，真实证据）
+- 并行 worker 提交 `44963f5`（lib 执行层三平台化，BLOK-1/2 + H-02/03 + E-01~03）落分支后，本机（macOS）`node test/smoke.mjs` 全绿：
+  `smoke OK: 平台=darwin，8 通道 build() 平台契约成立，优雅跳过契约成立（4/4 探测通道记 skipped）`。
+- 绊线完整闭环被验证：pre-fix lib → 红（5 通道 powershell 泄漏）；fix 落地 → 绿。断言不是「永远红」的坏断言。
+- CI 实跑（push 触发，run 33168647280，feat/cross-platform）：三平台均跑起 —— ubuntu/macos 走非 win32 断言、windows 走 win32 断言（证明 IS_WIN 分支与 pwsh shell 均正确）；Syntax check 三平台全绿；Smoke 在 pre-fix lib 上按预期红（绊线），随 fix-shell-layer 提交推送到分支后应转绿。
