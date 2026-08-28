@@ -1,0 +1,16 @@
+{
+  "tasks": [
+    {
+      "task_id": "docs-cross-platform",
+      "ticket": "lt_1787916982112526000",
+      "date": "2026-08-28",
+      "dag": "cross-platform",
+      "branch": "feat/cross-platform",
+      "head": "a4a25e5f49aed343ca79fe63e37f4e74fde6ee14",
+      "conclusion": "README.md / DESIGN.md 三平台化完成：安装段按 Windows(PowerShell, $env:USERPROFILE) / macOS·Linux(bash/zsh, ~) 分块，link: 依赖平台化（绝对路径 + <you> 占位）；通道表增 macOS/Linux 可用性列——github(gh)/yt-dlp/bili 三平台原生（未装即 [SKIP]）、web/twitter/reddit/xiaohongshu/linkedin(mcporter/opencli) 标注修复后形态（修复并行进行中）、v2ex/curl 兜底三平台；附 CLI 获取方式（brew/pip/npm/官方渠道）、bili-cli 非官方提示、DSH_HARVEST_BIN 覆盖与 macOS GUI 启动 PATH 提示；DESIGN.md 目标平台改三平台，工具表 6→9 通道修正，新增平台可用矩阵与安装路径表。全程用目标平台/修复后形态措辞，未虚构已验证。",
+      "deliverable": "README.md、DESIGN.md diff（96 insertions/23 deletions，commit a4a25e5）",
+      "verification": "git diff 渲染审查——命令块按平台分开、$env:USERPROFILE vs ~ 正确、无 15775/C:\\\\Users 硬编码残留、架构段通道数 6→9 与 bili 补齐；零代码改动未触碰 node",
+      "limitation": "修复进行中的 mcporter/opencli 通道 mac/linux 描述基于审计 B-04 修复方案 4.1 的 argv 直调形态，fix-shell-layer 落地后若形态有变需同步回看这两处措辞"
+    }
+  ]
+}
