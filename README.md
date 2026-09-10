@@ -16,11 +16,12 @@
 
 ---
 
-## ✨ 四个原生工具
+## ✨ 五个原生工具
 
 | 工具 | 职责 | 失败策略 |
 |------|------|---------|
-| `harvest_scout` | 多平台并行发现候选来源 | 单通道失败记 `[SKIP]`,不阻塞 |
+| `harvest_scout` | 多平台并行发现候选来源（Web/GitHub/社媒等） | 单通道失败记 `[SKIP]`,不阻塞 |
+| `harvest_deep_research` | 异步端到端深度调研（生成长篇综合研报与信源） | 超时/异常安全回退，不卡死主会话 |
 | `harvest_extract` | 逐条抓取正文 | 直抓 → Jina 升级 → 标记 paywall/unreachable |
 | `harvest_verify` | 跨源交叉验证断言 | 一致 / 弱 / 未证实 三态 |
 | `harvest_audit` | 来源可信度五维审计 | 🟢 可信 / 🟡 谨慎 / 🔴 弃用 |
@@ -108,10 +109,17 @@ dsh web
 
 ```
 harvest_scout(query="最新 AI 项目", limit=8)
+harvest_deep_research(input="深入剖析大模型推理与架构演进")
 harvest_extract(urls=["https://…", "https://…"])
 harvest_verify(claims=["DeepSeek 出了视觉模型"], sources=[…])
 harvest_audit(sources=[{title, url, type}])
 ```
+
+## ⚙️ 环境变量配置（可选）
+
+- `TAVILY_API_KEY`: 配置后可开启 Tavily 极速 Web 搜索与 DeepSearch 深度研报功能。
+- `TAVILY_ENDPOINT`: 默认为 `https://api.tavily.com/search`（可指定私有中转代理）。
+- `TAVILY_RESEARCH_ENDPOINT`: 默认为 `https://api.tavily.com/research`（可指定私有研报代理）。
 
 ## 🏗️ 架构
 
