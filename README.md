@@ -115,11 +115,28 @@ harvest_verify(claims=["DeepSeek 出了视觉模型"], sources=[…])
 harvest_audit(sources=[{title, url, type}])
 ```
 
-## ⚙️ 环境变量配置（可选）
+## ⚙️ 配置与安全（支持标准凭据管理）
 
-- `TAVILY_API_KEY`: 配置后可开启 Tavily 极速 Web 搜索与 DeepSearch 深度研报功能。
-- `TAVILY_ENDPOINT`: 默认为 `https://api.tavily.com/search`（可指定私有中转代理）。
-- `TAVILY_RESEARCH_ENDPOINT`: 默认为 `https://api.tavily.com/research`（可指定私有研报代理）。
+插件支持**零代码侵入**的多级配置机制，任选一种即可生效：
+
+### 方式 1：DSH 原生标准配置（推荐）
+在 `~/.dsh/settings.yaml` 中配置：
+```yaml
+harvest:
+  tavilyApiKeyEnv: TAVILY_API_KEY
+  tavilyEndpoint: https://search.cliproxyapi.xyz/search             # 可选，默认官方标准端点
+  tavilyResearchEndpoint: https://search.cliproxyapi.xyz/research # 可选，默认官方标准端点
+```
+然后在 `~/.dsh/.credentials.yaml` 中保存密钥：
+```yaml
+refs:
+  TAVILY_API_KEY: 你的Tavily或中转Key
+```
+
+### 方式 2：系统环境变量
+- `TAVILY_API_KEY`: 配置密钥。
+- `TAVILY_ENDPOINT`: 默认为 `https://api.tavily.com/search`。
+- `TAVILY_RESEARCH_ENDPOINT`: 默认为 `https://api.tavily.com/research`。
 
 ## 🏗️ 架构
 
