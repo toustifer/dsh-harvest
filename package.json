@@ -1,7 +1,7 @@
 {
   "name": "dsh-harvest",
-  "version": "0.2.0",
-  "description": "DSH 原生多平台调研流水线插件：harvest_scout(多平台发现)/harvest_deep_research(深度研报)/harvest_extract(穿透抓取)/harvest_verify(交叉验证)/harvest_audit(可信度审计)。源于自研 omni-scope 方法论，零第三方外部包依赖、自包含。",
+  "version": "0.3.0",
+  "description": "Cross-platform research tools for Codex MCP and DSH, with evidence-first Skill workflows.",
   "keywords": [
     "dsh",
     "dsh-plugin",
@@ -12,7 +12,10 @@
     "extract",
     "verify",
     "audit",
-    "investigation"
+    "investigation",
+    "codex",
+    "mcp",
+    "skill"
   ],
   "type": "module",
   "main": "lib/index.js",
@@ -22,14 +25,42 @@
   },
   "files": [
     "lib",
+    "bin",
+    "skills",
+    ".codex-plugin",
+    ".mcp.json",
     "instructions",
     "cordis.patch.yml",
-    "README.md"
+    "README.md",
+    "docs",
+    "LICENSE",
+    "ATTRIBUTION.md"
   ],
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
     }
   },
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "yaml": "2.9.1",
+    "zod": "4.6.2"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "harvest-mcp": "bin/harvest-mcp.mjs",
+    "harvest-doctor": "bin/harvest-doctor.mjs"
+  },
+  "scripts": {
+    "test": "npm run build && node --test test/*.test.mjs",
+    "doctor": "node bin/harvest-doctor.mjs",
+    "start": "node bin/harvest-mcp.mjs",
+    "build": "node scripts/build-plugin.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
 }

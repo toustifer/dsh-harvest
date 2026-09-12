@@ -1,63 +1,19 @@
-# dsh-harvest 设计文档
+# Harvest 0.3 架构
 
-- 日期：2026-08-25（跨平台更新：2026-08-28）
-- 作者：用户（omni-scope 原创者）
-- 状态：已实现
-- 目标平台：**Windows / macOS / Linux**
+当前实现：共享工具核心 + Codex STDIO MCP + DSH 薄适配器。原始跨平台审计文档描述 0.2 及更早版本；以当前代码和 README 为准。
 
-## 目标
+- `lib/core.js`：Zod 参数契约、工具编排与每次调用的期限。
+- `lib/config.js`：环境配置；DSH YAML 解析仅在 `lib/index.js`。
+- `lib/backends.js` / `lib/process.js`：九个数据渠道、参数安全传递与进程超时。
+- `lib/http.js` / `lib/extract.js`：有界 HTTP、正文路由、截断与可选快照。
+- `lib/evidence.js`：来源去重、词汇候选片段和待核查元数据。
+- `lib/research.js`：Tavily start/status、原子持久化与报告分页。取消本地请求不等于远端取消。
+- `lib/mcp.js`：标准 MCP SDK，JSON 结果和错误；stdout 只传输协议。
+- `skills/harvest-research`：宿主负责选渠道、原文语义判断、来源引用及缺口说明。
+- `scripts/build-plugin.mjs`：输出不依赖 node_modules 的本地插件目录。
 
-把自研 omni-scope 的「多平台调研方法论」（scout → extract → verify → audit）按 DSH 原生插件形态工程化，
-成为一套真正属于自己、可对外声明首创的 DSH 原生能力。
+默认每次 scout 限 25 秒，extract 限 45 秒，单次外部研究请求默认 20 秒；MCP 调用期限配置为 60 秒。HTTP 响应最多 2 MiB，原文输出有明确截断标记，证据候选每断言最多五条并报告总数。
 
-## 形态
+核验与审计不会生成自动 truth/trust 判定。工具读到的网页和外部输出均为不可信资料，不能作为操作指令。
 
-cordis 插件 + 原生工具注册（同 dsh-strategic-core 模式）。零 `@deepseek-ai` 依赖、自包含。
-
-## 工具
-
-| 工具 | 职责 | 关键行为 |
-|------|------|---------|
-| harvest_scout | 多平台并行发现 | 9 通道并行，失败记 `[SKIP]` 不阻塞 |
-| harvest_extract | 逐条抓取 | 直抓 → r.jina.ai 升级 → 标记 paywall/unreachable，不静默丢弃 |
-| harvest_verify | 交叉验证 | 关键词命中 → verified/weak/unverified |
-| harvest_audit | 可信度审计 | 五维启发式评分 → trust/caution/discard |
-
-## 数据通道（平台可用矩阵）
-
-9 条通道，进程调用形态按平台分支（详见下）：
-
-| 通道 | 底层 | Windows | macOS / Linux |
-|------|------|---------|---------------|
-| GitHub | `gh search repos` | ✅ 原生 | ✅ 原生（未装 `[SKIP]`） |
-| Web / Exa | `mcporter call exa.web_search_exa` | ✅ 经 PowerShell 垫片 | ✅ 直接 argv 调用（修复后形态） |
-| Twitter / Reddit / 小红书 | `opencli`（浏览器桥接） | ✅ 经 PowerShell 垫片 | ✅ 直接 argv 调用（修复后形态） |
-| LinkedIn | `mcporter linkedin-scraper` | ✅ 经 PowerShell 垫片 | ✅ 直接 argv 调用（修复后形态） |
-| YouTube | `yt-dlp ytsearchN:` | ✅ 原生 | ✅ 原生（未装 `[SKIP]`） |
-| B站 | `bili search`（bili-cli，第三方） | ✅ 原生 | ✅ 原生（未装 `[SKIP]`） |
-| V2EX | `curl v2ex.com/api/topics/hot.json` | ✅ HTTP 直连 + 兜底 | ✅ HTTP 直连 + curl 兜底 |
-
-- **进程调用形态**：Windows 上 `mcporter`/`opencli` 是 npm 全局生成的 `.ps1`/`.cmd` 垫片（Node `execFile` 无法直接执行），经 `powershell.exe` 以绝对路径调用，垫片目录可用环境变量 `DSH_HARVEST_BIN` 覆盖；macOS/Linux 上它们是可执行脚本/二进制，直接 `execFile` argv 直调，不经任何 shell 壳（修复后形态）。
-- **优雅跳过契约**：未装 CLI / 桥接未连 / 解析失败 → 通道抛错 → 记 `[SKIP]`，绝不阻塞整条 scout；三平台一致。
-- **extract 平台依赖**：RSS 解析需 `python3`/`python` + feedparser 包；小宇宙转写需 `bash` + `~/.agent-reach/tools/xiaoyuzhou/transcribe.sh`（Windows 默认无 bash → 恒 unreachable，优雅降级）。
-- **HTTP 兜底**：`fetch`(undici) 失败时——Windows 走 PowerShell `Invoke-WebRequest`（WinINET 系统代理），macOS/Linux 走 `curl`（环境变量 `https_proxy` 已设时自动读代理）。
-
-## 安装路径（按平台）
-
-| 平台 | 插件目录 | 配置文件 |
-|------|---------|---------|
-| Windows | `%USERPROFILE%\.dsh\plugins\dsh-harvest` | `%USERPROFILE%\.dsh\profiles\web\package.json` |
-| macOS / Linux | `~/.dsh/plugins/dsh-harvest` | `~/.dsh/profiles/web/package.json` |
-
-1. 克隆到上表插件目录；
-2. `profiles/web/package.json` 加 `link:` 依赖（**绝对路径**，JSON 不做变量展开） + bundles 条目；
-3. `cordis.patch.yml` 注入 `id: harvest`；
-4. profile 内 `pnpm install` 完成链接。
-
-## 命名
-
-工具名全下划线（`harvest_*`），规避 OpenAI 工具名校验 `^[a-zA-Z0-9_-]+$`（此前 strategy.* 点号名踩过坑）。
-
-## 血统
-
-源于自研 omni-scope 方法论，DSH 原生重写。README 明示 lineage。
+Node 22+；固定版本 MCP SDK、Zod、YAML，开发打包使用 esbuild。保留 MIT 血统，独立包附带依赖许可证。

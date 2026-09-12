@@ -1,0 +1,25 @@
+{
+  "name": "dsh-harvest",
+  "version": "0.3.0",
+  "description": "Codex 多平台调研、正文提取与证据整理；支持可恢复的 Tavily 研究任务。",
+  "author": {
+    "name": "dsh-harvest contributors"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Harvest 调研",
+    "shortDescription": "搜索、读取原文、比对证据并形成有据可查的结论。",
+    "longDescription": "结合 Codex 的分析能力与多平台工具，保留来源、截断标记和证据缺口。外部 Tavily 研究为可选能力。",
+    "developerName": "dsh-harvest contributors",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "用 Harvest 调研一个主题，读取原文并对比关键证据。"
+    ]
+  },
+  "mcpServers": "./.mcp.json",
+  "license": "MIT"
+}

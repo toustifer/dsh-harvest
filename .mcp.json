@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "harvest": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "bin/harvest-mcp.mjs"
+      ],
+      "cwd": ".",
+      "env_vars": [
+        "TAVILY_API_KEY",
+        "TAVILY_ENDPOINT",
+        "TAVILY_RESEARCH_ENDPOINT",
+        "HARVEST_DATA_DIR",
+        "HARVEST_BIN",
+        "DSH_HARVEST_BIN"
+      ],
+      "startup_timeout_sec": 15,
+      "tool_timeout_sec": 60
+    }
+  }
+}

@@ -1,160 +1,107 @@
-# 🌾 dsh-harvest
+# Harvest — Codex 调研工具
 
-> DSH 原生多平台调研流水线插件 —— 把「发现 → 抓取 → 验证 → 审计」做成四个原生工具。
-> 目标平台：Windows / macOS / Linux（安装与数据通道均已按平台分块说明）。
+本地 MCP 服务 + `harvest-research` Skill。复用 dsh-harvest 的多平台发现和抓取能力，由 Codex 阅读原文、判断证据并撰写报告。保留 DSH 入口，当前版本 0.3.0。
 
-<p align="center">
-  <img src="https://img.shields.io/badge/license-MIT-green" alt="license"/>
-  <img src="https://img.shields.io/badge/DeepSeek%20Harness-plugin-4b32c3" alt="DeepSeek Harness"/>
-  <img src="https://img.shields.io/badge/version-0.1.0-blue" alt="version"/>
-  <img src="https://img.shields.io/badge/zero--deps-self--contained-2ea44f" alt="zero deps"/>
-  <img src="https://img.shields.io/badge/runtime-Node%20ESM-339933" alt="Node ESM"/>
-  <img src="https://img.shields.io/badge/target%20platforms-Win%20%7C%20macOS%20%7C%20Linux-lightgrey" alt="target platforms"/>
-</p>
+## 快速开始
 
-`dsh-harvest` 让 DeepSeek Harness 里的智能体**像开联合收割机一样做调研**:一次撒网多个平台、穿透反爬抓原文、跨源交叉验证、最后给来源打分。任一数据通道挂了也不会卡住整条流水线。
+需要 Node.js 22 或更新版本。在仓库目录运行：
 
----
-
-## ✨ 五个原生工具
-
-| 工具 | 职责 | 失败策略 |
-|------|------|---------|
-| `harvest_scout` | 多平台并行发现候选来源（Web/GitHub/社媒等） | 单通道失败记 `[SKIP]`,不阻塞 |
-| `harvest_deep_research` | 异步端到端深度调研（生成长篇综合研报与信源） | 超时/异常安全回退，不卡死主会话 |
-| `harvest_extract` | 逐条抓取正文 | 直抓 → Jina 升级 → 标记 paywall/unreachable |
-| `harvest_verify` | 跨源交叉验证断言 | 一致 / 弱 / 未证实 三态 |
-| `harvest_audit` | 来源可信度五维审计 | 🟢 可信 / 🟡 谨慎 / 🔴 弃用 |
-
-**数据流**:`scout → extract → verify → audit`,每个工具输出结构化 JSON + 折叠文本,供 agent 直接读取。
-
-## 🔌 数据通道
-
-9 条数据通道，任一通道失败（CLI 未装 / 浏览器桥接未连 / 解析失败）记 `[SKIP]`，不阻塞整条流水线。
-
-| 通道 | 底层 | 类型 | macOS / Linux 可用性 |
-|------|------|------|----------------------|
-| GitHub | `gh search repos` | 代码 | ✅ 三平台原生可用，未装即 `[SKIP]` |
-| Web / Exa | `mcporter call exa.web_search_exa` | 网页搜索 | ✅ mac/linux 可直接调用（修复后形态） |
-| Twitter / Reddit / 小红书 | `opencli`(浏览器桥接) | 社交 | ✅ mac/linux 可直接调用（修复后形态） |
-| LinkedIn | `mcporter linkedin-scraper`(需登录态) | 招聘 | ✅ mac/linux 可直接调用（修复后形态） |
-| YouTube | `yt-dlp ytsearchN:` | 视频 | ✅ 三平台原生可用，未装即 `[SKIP]` |
-| B站 | `bili search`(bili-cli，第三方) | 视频 | ✅ 三平台原生可用，未装即 `[SKIP]` |
-| V2EX | `curl v2ex.com/api/topics/hot.json` | 社区 | ✅ 三平台可用（HTTP 直连 + curl 兜底） |
-
-> **修复说明**：`mcporter` / `opencli` 在 Windows 上以 npm 全局安装生成的 `.ps1`/`.cmd` 垫片存在（Node `execFile` 无法直接执行，需经 PowerShell 调用）；在 macOS/Linux 上它们是**可执行脚本/二进制，可直接 argv 调用**。本次跨平台修复（并行进行中，见 DESIGN.md 数据通道矩阵）即按该目标形态实现，文档按修复后的形态描述。macOS/Linux 上未装对应 CLI 时通道记 `[SKIP]`，与 Windows 行为一致。
-
-> **另**：`harvest_extract` 自动识别 **RSS feed**(feedparser)与**小宇宙播客** URL(Whisper 转写)，把 agent-reach 剩余 3 个平台(小宇宙/RSS/网页阅读)也纳入 —— 合计覆盖全部 13 平台。
-> 平台依赖：RSS 解析走 **Python**(`python3`/`python`，需 feedparser 包)；小宇宙转写走 **bash**(`~/.agent-reach/tools/xiaoyuzhou/transcribe.sh`，需 groq key)。Windows 默认无 bash，小宇宙通道在 Windows 上恒 `unreachable`（优雅降级，不报错）。
-
-### 数据通道 CLI 获取方式（按平台）
-
-未安装的通道不会阻塞流水线（自动记 `[SKIP]`），按需安装即可：
-
-| CLI | 用途 | Windows | macOS | Linux |
-|-----|------|---------|-------|-------|
-| `gh` | GitHub 搜索 | winget / 官方安装包 | `brew install gh` | 官方 apt 仓库 / 二进制 |
-| `mcporter` | Web/Exa · LinkedIn | `npm i -g mcporter`（经 PowerShell 垫片） | `npm i -g mcporter`（可执行脚本，直调） | 同 macOS |
-| `opencli` | Twitter · Reddit · 小红书 | `npm i -g opencli` | `npm i -g opencli` | 同 macOS |
-| `yt-dlp` | YouTube | 官方 `yt-dlp.exe` / winget | `brew install yt-dlp` | `pip install yt-dlp` / 发行版包 |
-| `bili-cli` | B站 | GitHub 发布页 `bili.exe` | brew / 源码构建 | 源码构建 |
-
-> **bili-cli 重要提示**：`bili` 是**第三方非官方** bilibili 客户端（Go 单二进制），非哔哩哔哩官方发布；只从可信来源（如项目自己的 GitHub 发布页）获取并自行核验，注意其登录方式与合规边界。
-> **Windows npm 全局**：`mcporter`/`opencli` 经 npm 全局安装，垫片生成在 npm 全局 bin 目录（`npm prefix -g` 可查）；若该目录非常规位置，设环境变量 `DSH_HARVEST_BIN` 指向它以覆盖默认查找。
-> **macOS 提示**：若 `dsh web` 从 Finder / LaunchAgent 启动，进程 PATH 通常只有系统目录，`/opt/homebrew/bin` 下的 `gh`/`yt-dlp` 取不到（即便已装也会 `[SKIP]`）；从终端启动，或在启动脚本里显式把用户 bin 目录加进 PATH（如 `export PATH="/opt/homebrew/bin:$PATH"`）。
-
-## 📦 安装（DSH 原生）
-
-### Windows（PowerShell）
-
-```powershell
-# 1. 克隆到 DSH 插件目录
-git clone https://github.com/<you>/dsh-harvest.git $env:USERPROFILE\.dsh\plugins\dsh-harvest
-
-# 2. 在 web profile 的 package.json 里加 link 依赖 + bundles 条目
-#    "dependencies": { "dsh-harvest": "link:C:/Users/<you>/.dsh/plugins/dsh-harvest" },
-#    "dsh.profile.bundles": [ ..., "dsh-harvest" ]
-#    （link 路径用正斜杠，把 <you> 换成你的用户名）
-
-# 3. 链接
-cd $env:USERPROFILE\.dsh\profiles\web
-pnpm install
-
-# 4. 重启
-dsh web
+```text
+npm ci --ignore-scripts
+npm test
+npm run doctor
 ```
 
-### macOS / Linux（bash / zsh）
+`npm test` 会构建独立插件并运行离线测试，包括真实 MCP 客户端、Windows 参数传递、网络超时、任务恢复和无依赖目录启动。
 
-```bash
-# 1. 克隆到 DSH 插件目录
-git clone https://github.com/<you>/dsh-harvest.git ~/.dsh/plugins/dsh-harvest
+### 接入 Codex
 
-# 2. 在 web profile 的 package.json 里加 link 依赖 + bundles 条目
-#    macOS:  "dependencies": { "dsh-harvest": "link:/Users/<you>/.dsh/plugins/dsh-harvest" }
-#    Linux:  "dependencies": { "dsh-harvest": "link:/home/<you>/.dsh/plugins/dsh-harvest" }
-#    "dsh.profile.bundles": [ ..., "dsh-harvest" ]
+在 Codex 的 MCP 设置中添加 STDIO 服务：命令为 `node`，参数为本仓库 `bin/harvest-mcp.mjs` 的绝对路径。也可通过 CLI 注册（将路径替换成本机仓库路径）：
 
-# 3. 链接
-cd ~/.dsh/profiles/web
-pnpm install
-
-# 4. 重启
-dsh web
+```text
+codex mcp add harvest -- node /absolute/path/dsh-harvest/bin/harvest-mcp.mjs
 ```
 
-> 两平台差异只在根目录：Windows 用 `$env:USERPROFILE`（PowerShell），macOS/Linux 用 `~`。`link:` 依赖需写**绝对路径**（JSON 不做变量展开），`<you>` 换成你的用户名即可复制执行。
+Windows 路径包含中文或空格时，在终端中给整个路径加引号。若应用找不到 Node，使用 `node.exe` 的绝对路径。
 
-## 🚀 用法
+将 `skills/harvest-research` 目录复制到个人的 `~/.agents/skills/` 中。重新打开任务后，以 `$harvest-research` 调用，例如：
 
-```
-harvest_scout(query="最新 AI 项目", limit=8)
-harvest_deep_research(input="深入剖析大模型推理与架构演进")
-harvest_extract(urls=["https://…", "https://…"])
-harvest_verify(claims=["DeepSeek 出了视觉模型"], sources=[…])
-harvest_audit(sources=[{title, url, type}])
-```
+> 用 Harvest 调研本地优先的笔记软件，阅读官方文档，核实离线功能并比较证据。
 
-## ⚙️ 配置与安全（支持标准凭据管理）
+也可在 `~/.codex/config.toml` 或项目 `.codex/config.toml` 中使用：
 
-插件支持**零代码侵入**的多级配置机制，任选一种即可生效：
-
-### 方式 1：DSH 原生标准配置（推荐）
-在 `~/.dsh/settings.yaml` 中配置：
-```yaml
-harvest:
-  tavilyApiKeyEnv: TAVILY_API_KEY
-  tavilyEndpoint: https://search.cliproxyapi.xyz/search             # 可选，默认官方标准端点
-  tavilyResearchEndpoint: https://search.cliproxyapi.xyz/research # 可选，默认官方标准端点
-```
-然后在 `~/.dsh/.credentials.yaml` 中保存密钥：
-```yaml
-refs:
-  TAVILY_API_KEY: 你的Tavily或中转Key
+```toml
+[mcp_servers.harvest]
+command = "node"
+args = ["/absolute/path/dsh-harvest/bin/harvest-mcp.mjs"]
+env_vars = ["TAVILY_API_KEY", "TAVILY_ENDPOINT", "TAVILY_RESEARCH_ENDPOINT", "HARVEST_DATA_DIR", "HARVEST_BIN"]
+startup_timeout_sec = 15
+tool_timeout_sec = 60
 ```
 
-### 方式 2：系统环境变量
-- `TAVILY_API_KEY`: 配置密钥。
-- `TAVILY_ENDPOINT`: 默认为 `https://api.tavily.com/search`。
-- `TAVILY_RESEARCH_ENDPOINT`: 默认为 `https://api.tavily.com/research`。
+项目配置需要该项目已被 Codex 信任。不要同时启用同一份插件 MCP 和独立 MCP 配置，以免工具重复。
 
-## 🏗️ 架构
+### 独立插件包
 
-```
-lib/
-  index.js      # 插件主体:注册 4 个工具
-  backends.js   # 9 通道封装 + 优雅跳过
-  extract.js    # 抓取路由(直抓 → r.jina.ai；RSS / 小宇宙)
-  http.js       # HTTP 层(fetch + 平台化兜底)
-```
+`npm run build` 生成 `dist/dsh-harvest/`，其中包括 `.codex-plugin/plugin.json`、`.mcp.json`、Skill、打包后的 MCP 运行程序及第三方许可证。这个目录只需要 Node.js，不需要再次安装 npm 依赖。`.mcp.json` 的 `cwd: "."` 由 Codex 按插件根目录解析。
 
-**零依赖**:只用 Node 内建(`node:child_process` / 全局 `fetch`),不 import 任何第三方包。
+源码目录本身也带插件清单，但源码运行需要先安装依赖。个人本地插件的安装入口依 Codex 版本而异；不能使用插件安装界面时，采用上面的独立 MCP + Skill 方式。本仓库未发布到公共插件目录。
 
-## 📄 归属与血统
+## 工具
 
-方法论(Scout → Extract → Verify → Audit)源于作者自研的 [omni-scope](https://github.com/toustifer/omni-scope) 工作流,按 DSH 原生插件形态**从零重写**。
-运行时仅以子进程调用 `gh` / `mcporter` / `opencli` / `yt-dlp` / `bili` 作为数据通道,不包含其源码。详见 [ATTRIBUTION.md](./ATTRIBUTION.md)。
+| 工具 | 行为 |
+|---|---|
+| `harvest_doctor` | 检查本地命令、凭据是否配置；不验证付费 API 或登录状态 |
+| `harvest_scout` | 默认 Web/GitHub，每渠道 5 条，最多 10 条；区分空结果和失败 |
+| `harvest_extract` | 每次最多 3 个 URL；正文截断可见，可选保存完整正文 |
+| `harvest_verify` | 按原文匹配候选片段、URL 去重；不声称事实已验证 |
+| `harvest_audit` | 展示元数据及缺失项；不自动评分或弃用来源 |
+| `harvest_research_start` | 提交可选 Tavily 研究，立即返回任务编号 |
+| `harvest_research_status` | 单次查询进度，支持重启恢复及报告分页 |
 
-## 📝 License
+`harvest_verify` 返回 `needs_review` 或 `insufficient_evidence`。Codex 必须结合语义判断支持、反驳、证据不足，并处理否定词、版本、日期和来源转载。两个关键词命中不代表两个独立来源证实结论。
 
-[MIT](./LICENSE) © 2026 dsh-harvest contributors
+抓取默认每篇返回 8000 字符，`maxChars` 可设为 500–50000。`saveFullText: true` 将实际抓到的完整正文保存为本地 JSON，返回 `artifactPath`；HTTP 响应上限为 2 MiB。HTTP 200 的明显脚本占位页会升级 Jina；通用网页正文提取仍可能带导航或遗漏动态内容，需要人工/模型核对。
+
+## 数据渠道与配置
+
+| 渠道 | 可选依赖 |
+|---|---|
+| GitHub | `gh` 和有效的 GitHub 登录态 |
+| Web | Tavily 密钥，或 `mcporter` 中配置好的 Exa |
+| Twitter / Reddit / 小红书 | `opencli`、浏览器桥接及相应登录态 |
+| LinkedIn | `mcporter` 中的 linkedin-scraper |
+| YouTube | `yt-dlp` |
+| B站 | 第三方 `bili` CLI |
+| V2EX | 公共热帖 API，仅按主题过滤当前热帖 |
+| RSS | Python 和 `feedparser` |
+
+小宇宙转写不在短时抓取工具内运行，返回 `unsupported`；可使用独立转写工具或提供逐字稿。缺依赖不会导致其他渠道失败，也不会自动安装外部工具。
+
+Codex 入口只读取环境配置，不读取 `.dsh` 凭据：
+
+- `TAVILY_API_KEY`：可选，Tavily 搜索/研究凭据。
+- `TAVILY_ENDPOINT`：默认 `https://api.tavily.com/search`。
+- `TAVILY_RESEARCH_ENDPOINT`：默认 `https://api.tavily.com/research`。
+- `HARVEST_DATA_DIR`：默认 `~/.harvest`，存放任务状态、已完成报告和可选的原文快照。
+- `HARVEST_BIN`：额外 CLI 搜索目录；兼容旧 `DSH_HARVEST_BIN`。
+
+数据渠道会将查询发送给所选服务，Jina 回退会将目标 URL 交给 Jina。密钥不写入任务缓存；缓存可能包含研究正文和来源，保留在本地直至用户删除。自定义 Tavily 地址必须是你信任的服务；认证请求不跟随重定向。
+
+## 外部研究任务
+
+Tavily 是可选外部服务，可能计费，普通调研不需要它。提交后保留 `request_id`，按照 `pollAfterSeconds` 查询。请求超时不自动重复提交，避免重复任务。完成报告按 `nextOffset` 分页读取，重启后可读取缓存。
+
+取消 MCP 调用只停止本地请求，不保证取消 Tavily 端任务。本版本没有远端取消接口；不要把停止轮询说成已取消远端研究。
+
+## DSH 兼容
+
+保留 `package.json` 的 DSH bundle 和 `cordis.patch.yml`。`lib/index.js` 为薄适配器，支持 `.dsh/settings.yaml` 的 harvest 配置及凭据引用，环境变量优先。旧工具名 `harvest_deep_research` 仍可用，有限轮询后返回可继续查询的任务编号。
+
+0.3.0 有意调整 verify/audit 的输出语义；依赖旧 `verified`、可信度分数或一次抓取超过 3 个 URL 的调用者需要更新。Node 运行依赖为 MCP SDK、Zod 和 YAML，不再宣称零依赖。
+
+## 开发与验证
+
+核心在 `lib/core.js`，宿主入口为 `lib/mcp.js` 和 `lib/index.js`。测试位于 `test/*.test.mjs`，三平台 CI 运行同一套离线测试。真实渠道测试应单独进行：依赖检查通过或渠道跳过不算在线功能成功。
+
+详见 [适配研究](docs/codex-adaptation.md)。原始方法论来自作者的 omni-scope，保留 [MIT 许可证](LICENSE) 和 [归属声明](ATTRIBUTION.md)。

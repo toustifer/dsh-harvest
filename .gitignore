@@ -1,4 +1,7 @@
 node_modules/
+dist/
+.harvest/
+*.tgz
 *.log
 .DS_Store
 __pycache__/
