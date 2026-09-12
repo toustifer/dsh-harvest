@@ -132,3 +132,24 @@ test('web provider follows the DSH seam and resolves credentials from $DSH_HOME'
   const withKey = register()
   assert.equal(withKey.providers[0].available(),true,'凭据应通过 $DSH_HOME/.credentials.yaml 解析到')
 })
+
+test('DSH_HARVEST_TRACE gates the boot trace on stderr', async t => {
+  const savedTrace = process.env.DSH_HARVEST_TRACE
+  const written = []
+  const original = process.stderr.write
+  process.stderr.write = chunk => { written.push(String(chunk)); return true }
+  t.after(() => {
+    process.stderr.write = original
+    if (savedTrace === undefined) delete process.env.DSH_HARVEST_TRACE
+    else process.env.DSH_HARVEST_TRACE = savedTrace
+  })
+
+  delete process.env.DSH_HARVEST_TRACE
+  register()
+  assert.deepEqual(written,[],'未开启埋点时不得写 stderr')
+
+  process.env.DSH_HARVEST_TRACE = '1'
+  register()
+  assert.match(written.join(''),/registered 8 tools/,   '开启后应打印已注册工具数')
+  assert.match(written.join(''),/web search provider/,'开启后应打印 Provider 状态')
+})

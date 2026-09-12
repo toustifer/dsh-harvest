@@ -12,6 +12,7 @@
 - `lib/adapters/mcp/server.js`：标准 MCP SDK，JSON 结果和错误；stdout 只传输协议。
 - 分层约束：`lib/core/**` 是宿主中立层，禁止 import 宿主 SDK（yaml / cordis / MCP SDK）；适配器只许 import 核心与各自宿主 SDK。该边界由 `test/boundary.test.mjs` 机械校验，不靠口头约定。
 - `test/dsh.test.mjs`：DSH 适配契约（`exec.signal` 取消、默认值字段不得必填、8 工具集合、Provider 形状与 `$DSH_HOME`）。
+- `DSH_HARVEST_TRACE`：DSH 宿主侧可选启动埋点（stderr 打印已注册工具数与 Provider 状态），默认关闭；用于区分「没装/没加载」与「加载了但无结果」。安装与验证步骤见 README「接入 DSH」。
 - `skills/harvest-research`：宿主负责选渠道、原文语义判断、来源引用及缺口说明。
 - `scripts/build-plugin.mjs`：输出不依赖 node_modules 的本地插件目录。
 

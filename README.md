@@ -94,9 +94,66 @@ Tavily 是可选外部服务，可能计费，普通调研不需要它。提交�
 
 取消 MCP 调用只停止本地请求，不保证取消 Tavily 端任务。本版本没有远端取消接口；不要把停止轮询说成已取消远端研究。
 
-## DSH 兼容
+## 接入 DSH
 
-保留 `package.json` 的 DSH bundle 和 `cordis.patch.yml`。`lib/adapters/dsh/index.js` 为薄适配器，支持 `.dsh/settings.yaml` 的 harvest 配置及凭据引用（家目录按 DSH 规则解析：显式配置 → `$DSH_HOME` → `~/.dsh`），环境变量优先。旧工具名 `harvest_deep_research` 仍可用，有限轮询后返回可继续查询的任务编号。
+DSH 侧以原生插件（cordis bundle）接入：注册 8 个工具（7 个核心工具 + 旧名 `harvest_deep_research`），并在宿主提供 `ctx.web` 时注册 `tavily` 搜索 Provider。适配器为 `lib/adapters/dsh/index.js`，保留 `package.json` 的 `dsh.bundle.patch` 与 `cordis.patch.yml`。
+
+### 前置
+
+| 项 | 说明 |
+|---|---|
+| Node | 22+ |
+| pnpm | `dsh plugin` 把参数转发给 profile 目录中的 pnpm；未安装时用 `npm i -g pnpm`，或借用 Node 自带的 corepack：`corepack pnpm …` |
+| 本仓库依赖 | 插件以源码参与运行，先在本仓库 `npm ci`。`link:` 安装**不会**替你安装插件自己的依赖（Zod、YAML） |
+
+### 安装（源码 link）
+
+```bash
+# 1. 装本仓库依赖
+cd <this repo> && npm ci
+
+# 2. 链接进 web profile —— 等价于 dsh plugin --profile web add link:<abs path>
+cd ~/.dsh/profiles/web
+pnpm add "link:<this repo 的绝对路径>"        # 无 pnpm 时：corepack pnpm add "link:<abs path>"
+
+# 3. 在同一个 package.json 的 dsh.profile.bundles 数组里加入 "dsh-harvest"
+#    （bundles 先按名字从 dsh 安装目录解析，再从 profile 自身的 node_modules 解析）
+
+# 4. 重启 dsh web
+```
+
+### 验证
+
+```bash
+dsh --profile web --dump-config          # 组合树里应出现：- id: harvest / name: dsh-harvest
+DSH_HARVEST_TRACE=1 dsh web              # 真实启动时在 stderr 打印注册结果
+```
+
+```
+dsh-harvest: registered 8 tools, web search provider unconfigured (no Tavily key)
+```
+
+`DSH_HARVEST_TRACE` 默认关闭、只写 stderr、不影响协议输出。宿主侧加载失败或静默降级时（本项目历史上最贵的一类故障），这行是唯一能一眼看见的证据。
+
+### 配置
+
+家目录按 DSH 规则解析：显式配置 → `$DSH_HOME` → `~/.dsh`。在 `$DSH_HOME/settings.yaml` 配置端点、在 `$DSH_HOME/.credentials.yaml` 的 `refs:` 下放密钥（环境变量优先）：
+
+```yaml
+# settings.yaml
+harvest:
+  tavilyApiKeyEnv: TAVILY_API_KEY        # 可选，默认就是 TAVILY_API_KEY
+  tavilyEndpoint: https://search.example.com/search
+  tavilyResearchEndpoint: https://search.example.com/research
+```
+
+未配置 Tavily 时行为明确：`harvest_scout` 的 web 通道回退到 `mcporter`；`harvest_research_start/status` 与 `harvest_deep_research` 报 "not configured"，而不是静默返回空。
+
+### 说明
+
+- `link:` 指向源码目录，改完代码重启 `dsh web` 即生效，无需重新打包；同理，本仓库工作区改动会直接影响已装插件。
+- 挂载的宿主取消信号会被透传到所有工具与轮询循环（`exec.signal` → `AbortError`），DSH 侧中断不会被忽略。
+- 已知限制：模型侧 `parameters` 由 Zod 投影而来，含 `minLength`/`maxItems` 等 DSH 支持子集之外的关键字。当前默认呈现模式 `native` 不受影响；若切到 Code Mode（`code`/`both`），DSH 的代码生成会因不支持的子集把该工具的参数类型整体降级为 `unknown`（不报错、只丢类型提示）。运行时边界仍由 Zod 强制。
 
 0.3.0 有意调整 verify/audit 的输出语义；依赖旧 `verified`、可信度分数或一次抓取超过 3 个 URL 的调用者需要更新。Node 运行依赖为 MCP SDK、Zod 和 YAML，不再宣称零依赖。
 
