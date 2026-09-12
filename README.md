@@ -96,12 +96,12 @@ Tavily 是可选外部服务，可能计费，普通调研不需要它。提交�
 
 ## DSH 兼容
 
-保留 `package.json` 的 DSH bundle 和 `cordis.patch.yml`。`lib/index.js` 为薄适配器，支持 `.dsh/settings.yaml` 的 harvest 配置及凭据引用，环境变量优先。旧工具名 `harvest_deep_research` 仍可用，有限轮询后返回可继续查询的任务编号。
+保留 `package.json` 的 DSH bundle 和 `cordis.patch.yml`。`lib/adapters/dsh/index.js` 为薄适配器，支持 `.dsh/settings.yaml` 的 harvest 配置及凭据引用（家目录按 DSH 规则解析：显式配置 → `$DSH_HOME` → `~/.dsh`），环境变量优先。旧工具名 `harvest_deep_research` 仍可用，有限轮询后返回可继续查询的任务编号。
 
 0.3.0 有意调整 verify/audit 的输出语义；依赖旧 `verified`、可信度分数或一次抓取超过 3 个 URL 的调用者需要更新。Node 运行依赖为 MCP SDK、Zod 和 YAML，不再宣称零依赖。
 
 ## 开发与验证
 
-核心在 `lib/core.js`，宿主入口为 `lib/mcp.js` 和 `lib/index.js`。测试位于 `test/*.test.mjs`，三平台 CI 运行同一套离线测试。真实渠道测试应单独进行：依赖检查通过或渠道跳过不算在线功能成功。
+核心在 `lib/core/`（工具集 `lib/core/tools.js`），宿主入口为 `lib/adapters/dsh/index.js`（DSH 插件）与 `lib/adapters/mcp/server.js`（Codex STDIO MCP）。`lib/core/**` 不得 import 宿主 SDK，边界由 `test/boundary.test.mjs` 校验。测试位于 `test/*.test.mjs`，三平台 CI 运行同一套离线测试。真实渠道测试应单独进行：依赖检查通过或渠道跳过不算在线功能成功。
 
 详见 [适配研究](docs/codex-adaptation.md)。原始方法论来自作者的 omni-scope，保留 [MIT 许可证](LICENSE) 和 [归属声明](ATTRIBUTION.md)。

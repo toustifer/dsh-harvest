@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
-import { apply } from '../lib/index.js'
+import { apply } from '../lib/adapters/dsh/index.js'
 
 test('real stdio client initializes, discovers tools, calls and validates',async t=>{
   const transport=new StdioClientTransport({command:process.execPath,args:[fileURLToPath(new URL('../bin/harvest-mcp.mjs',import.meta.url))],stderr:'pipe'})

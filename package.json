@@ -18,9 +18,11 @@
     "skill"
   ],
   "type": "module",
-  "main": "lib/index.js",
+  "main": "lib/adapters/dsh/index.js",
   "exports": {
-    ".": "./lib/index.js",
+    ".": "./lib/adapters/dsh/index.js",
+    "./core": "./lib/core/tools.js",
+    "./mcp": "./lib/adapters/mcp/server.js",
     "./package.json": "./package.json"
   },
   "files": [

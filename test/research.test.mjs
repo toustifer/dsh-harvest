@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { createResearch } from '../lib/research.js'
+import { createResearch } from '../lib/core/research.js'
 
 async function fixture(t) {
   const dataDir=await fs.mkdtemp(path.join(os.tmpdir(),'harvest-test-'))

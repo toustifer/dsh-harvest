@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { command, runCommand } from '../lib/process.js'
+import { command, runCommand } from '../lib/core/process.js'
 
 test('Windows shim round-trips special query characters as literal data', {skip:process.platform!=='win32'}, async t=>{
   const dir=await fs.mkdtemp(path.join(os.tmpdir(),'harvest-argv-'))

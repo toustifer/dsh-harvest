@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import http from 'node:http'
-import { httpGetText, requestJson } from '../lib/http.js'
+import { httpGetText, requestJson } from '../lib/core/http.js'
 
 test('HTTP status preservation, body bound, redirect refusal and deadline',async t=>{
   const server=http.createServer((req,res)=>{
