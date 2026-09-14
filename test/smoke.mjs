@@ -47,6 +47,8 @@ const mockCtx = {
 }
 apply(mockCtx)
 assert(registeredSkill && registeredSkill.name === 'harvest', 'apply 应向 ctx.skills 注册 harvest skill')
+assert(typeof registeredSkill.source === 'string' && registeredSkill.source.length > 0, 'registeredSkill.source 必须是非空 string')
+assert(typeof registeredSkill.content === 'string' && registeredSkill.content.length > 0, 'registeredSkill.content 必须是非空 string')
 assert(registeredTools.length >= 5, `apply 应注册至少 5 个工具，实为 ${registeredTools.length}`)
 
 // —— T-03-1 平台探测断言（审计 BLOK-1/BLOK-2：Windows 独占假定不得回归）——
