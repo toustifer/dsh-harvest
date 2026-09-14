@@ -36,3 +36,15 @@ HTTP 兜底双路：win32 保留 `Invoke-WebRequest`（WinINET 系统代理）�
 
 **影响**：三平台行为对等（未装 CLI 一律 `[SKIP]`）；真实 Windows 执行由三平台 CI 矩阵
 长期保障；README/DESIGN 按「目标平台」口径同步（D-01~D-03）。
+
+## D-003 DSH 原生 Skill 动静双注册与路径契约（2026-09-14）
+
+**决策**：
+1. 静态规范：在项目根目录建立标准 `skills/harvest/SKILL.md`，配齐 DSH 扫描器要求的 YAML Frontmatter（`name: harvest`, `description`, `whenToUse`），并在 `package.json` 的 `files` 中加入 `skills`。
+2. 动态注册：在 `lib/index.js` 的 `apply(ctx)` 中通过 `ctx.inject(['skills'], (skillCtx) => { ... })` 动态注册 `harvest` 技能，实现插件加载即自带 Skill，无需依赖外部手动拷贝。
+3. 测试契约：`test/smoke.mjs` 中的 Windows 垫片断言重构为基于 `os.homedir()` / `DSH_HARVEST_BIN` 动态基准检验，杜绝直接写死系统用户名的字符串匹配，消除用户名碰撞造成的误报。
+
+**Why**：
+- DSH 的插件机制与 Skill 机制解耦，仅安装 npm 插件不会自动注册 Skill；
+- 静态文件让外部规范（如 `~/.dsh/skills/` 扫描）生效，动态注册让 Cordis 加载时即时注册，双重保障；
+- 保护 CI 与本地在不同 Windows 用户名下测试的一致性与稳定性。

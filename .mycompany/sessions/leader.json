@@ -50,6 +50,42 @@
           "note": "README/DESIGN 三平台化，Leader 验收通过"
         }
       }
+    },
+    "register-skill": {
+      "title": "支持 DSH 原生 Skill 规范与运行时动态注册",
+      "execution_branch": "feat/register-skill",
+      "shape": ".claude/dags/register-skill_SHAPE.md",
+      "created": "2026-09-14",
+      "status": "done",
+      "merge": {
+        "merge_commit": "HEAD",
+        "pushed": false,
+        "post_merge_verify": "master 上 node test/smoke.mjs 全绿，动态 Skill 注入与平台契约通过",
+        "cleanup": "worktree 已移除；feat/register-skill 本地分支已删（用完即删）"
+      },
+      "tasks": {
+        "task-standard-skill": {
+          "status": "done",
+          "worker": "worker-config",
+          "worker_agent_id": "35c83977-5b70-41cb-a63d-e20dcbaf380c",
+          "commit": "991f905",
+          "note": "标准 skills/harvest/SKILL.md 建立，package.json files 包含 skills 目录"
+        },
+        "task-runtime-skill": {
+          "status": "done",
+          "worker": "worker-infra",
+          "worker_agent_id": "2b687387-4dea-4eaf-8d5a-b931dc02977a",
+          "commit": "5c2fa52",
+          "note": "lib/index.js 动态注入 ctx.skills 并注册 harvest skill，ESM 规范与安全降级"
+        },
+        "task-verify-smoke": {
+          "status": "done",
+          "worker": "worker-ops",
+          "worker_agent_id": "c25a5707-29e4-4d86-ab05-4cd0afeaee93",
+          "commit": "966eb80",
+          "note": "消除 15775 用户名冲突误报，增加 dynamic skill registration 契约断言，smoke 测试全绿"
+        }
+      }
     }
   }
 }
