@@ -1,13 +1,13 @@
 # 🌾 dsh-harvest
 
-> DSH 原生多平台调研流水线插件 —— 把「发现 → 抓取 → 验证 → 审计」做成四个原生工具。
+> DSH 原生多平台调研流水线插件 —— 原生工具与 Skill 流水线（支持 5 个原生工具 + harvest skill）。
 > 目标平台：Windows / macOS / Linux（安装与数据通道均已按平台分块说明）。
 
 <p align="center">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="license"/>
   <img src="https://img.shields.io/badge/DeepSeek%20Harness-plugin-4b32c3" alt="DeepSeek Harness"/>
-  <img src="https://img.shields.io/badge/version-0.1.0-blue" alt="version"/>
-  <img src="https://img.shields.io/badge/zero--deps-self--contained-2ea44f" alt="zero deps"/>
+  <img src="https://img.shields.io/badge/version-0.2.0-blue" alt="version"/>
+  <img src="https://img.shields.io/badge/self--contained-2ea44f" alt="self-contained"/>
   <img src="https://img.shields.io/badge/runtime-Node%20ESM-339933" alt="Node ESM"/>
   <img src="https://img.shields.io/badge/target%20platforms-Win%20%7C%20macOS%20%7C%20Linux-lightgrey" alt="target platforms"/>
 </p>
@@ -142,13 +142,11 @@ refs:
 
 ```
 lib/
-  index.js      # 插件主体:注册 4 个工具
+  index.js      # 插件主体:注册 5 个工具与 harvest skill
   backends.js   # 9 通道封装 + 优雅跳过
   extract.js    # 抓取路由(直抓 → r.jina.ai；RSS / 小宇宙)
   http.js       # HTTP 层(fetch + 平台化兜底)
 ```
-
-**零依赖**:只用 Node 内建(`node:child_process` / 全局 `fetch`),不 import 任何第三方包。
 
 ## 📄 归属与血统
 
