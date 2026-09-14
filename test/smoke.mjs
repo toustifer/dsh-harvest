@@ -8,6 +8,8 @@
 // 若 fix-shell-layer 尚未提交（本机/CI 跑在 pre-fix lib 上），平台探测断言会红——
 // 这是预期的回归绊线：随 fix-shell-layer 提交转绿。不要改 lib/ 来迁就本断言。
 // ============================================================================
+import os from 'node:os'
+import path from 'node:path'
 import { name, inject, apply } from '../lib/index.js'
 import { BACKENDS, scoutChannel } from '../lib/backends.js'
 import { extractOne } from '../lib/extract.js'
@@ -27,6 +29,26 @@ assert(Object.keys(BACKENDS).length === 9, `应有 9 个后端，实为 ${Object
 assert(typeof extractOne === 'function', 'extractOne 应为函数')
 assert(typeof httpGetText === 'function', 'httpGetText 应为函数')
 
+// 验证 apply 注册 skills 与 tools
+let registeredSkill = null
+const registeredTools = []
+const mockCtx = {
+  logger: () => console,
+  tools: { register: (t) => registeredTools.push(t) },
+  inject: (deps, fn) => {
+    if (deps.includes('skills')) {
+      fn({
+        skills: {
+          register: (s) => { registeredSkill = s },
+        },
+      })
+    }
+  },
+}
+apply(mockCtx)
+assert(registeredSkill && registeredSkill.name === 'harvest', 'apply 应向 ctx.skills 注册 harvest skill')
+assert(registeredTools.length >= 5, `apply 应注册至少 5 个工具，实为 ${registeredTools.length}`)
+
 // —— T-03-1 平台探测断言（审计 BLOK-1/BLOK-2：Windows 独占假定不得回归）——
 const buildChannels = Object.keys(BACKENDS).filter((id) => typeof BACKENDS[id].build === 'function')
 assert(buildChannels.length >= 8, `应有至少 8 个通道具备 build()，实为 ${buildChannels.length}`)
@@ -40,9 +62,14 @@ for (const id of buildChannels) {
 
 const dump = (id) => JSON.stringify(BACKENDS[id].build('smoke platform probe', 1))
 if (IS_WIN) {
-  // win32：允许保留 PS 垫片（审计 4.1），但不得再含硬编码用户名 15775（BLOK-2）
-  const hardcoded = buildChannels.filter((id) => dump(id).includes('15775'))
-  assert(hardcoded.length === 0, `win32 下 build() 仍含硬编码用户名(15775): ${hardcoded.join(',')}（目标形态=SHIM_DIR 由 os.homedir() 派生；随 fix-shell-layer 提交转绿）`)
+  // win32：允许保留 PS 垫片（审计 4.1），SHIM_DIR 由 os.homedir() / DSH_HARVEST_BIN 派生（BLOK-2）
+  // 检验 dump(id) 中使用 .ps1 垫片的通道是否正确包含派生的路径结构，避免直接字面匹配特定用户名导致假阳性误报
+  const expectedShimDir = process.env.DSH_HARVEST_BIN || path.join(os.homedir(), '.npm-global')
+  const jsonShimDir = JSON.stringify(expectedShimDir).slice(1, -1)
+  const shimChannels = buildChannels.filter((id) => dump(id).includes('.ps1'))
+  assert(shimChannels.length > 0, 'win32 下应有通道使用 .ps1 垫片')
+  const invalidShimChannels = shimChannels.filter((id) => !dump(id).includes(jsonShimDir))
+  assert(invalidShimChannels.length === 0, `win32 下 build() 垫片路径未包含派生自 os.homedir() 的目录: ${invalidShimChannels.join(',')}`)
 } else {
   // 非 win32：任何通道 build() 不得再引用 powershell(.exe) / .ps1 垫片（BLOK-1）
   const leaked = buildChannels.filter((id) => /powershell(\.exe)?|\.ps1/i.test(dump(id)))
