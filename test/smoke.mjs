@@ -10,7 +10,7 @@
 // ============================================================================
 import os from 'node:os'
 import path from 'node:path'
-import { name, inject, apply } from '../lib/index.js'
+import { name, inject, apply, sanitizeResearchInput } from '../lib/index.js'
 import { BACKENDS, scoutChannel } from '../lib/backends.js'
 import { extractOne, decodeBuffer } from '../lib/extract.js'
 import { httpGetText } from '../lib/http.js'
@@ -129,4 +129,43 @@ const gbkHtml = Buffer.concat([
 const decodedText = decodeBuffer(gbkHtml)
 assert(decodedText.includes('中文测试'), `GBK 解码后应包含 "中文测试"，实为: ${decodedText}`)
 
-console.log(`smoke OK: dsh-harvest 可加载（9 通道），平台=${process.platform}，${buildChannels.length} 通道 build() 平台契约成立，优雅跳过契约成立（${skipped.length}/${PROBE.length} 探测通道记 skipped），鲁棒性断言全绿`)
+// —— T-03-4 深度调研输入净化断言（sanitizeResearchInput 风控敏感词规避）——
+assert(typeof sanitizeResearchInput === 'function', 'sanitizeResearchInput 应为函数')
+// 1. 中文敏感词替换
+assert(
+  sanitizeResearchInput('如何绕过 Google 验证') === '如何解决 Google 验证',
+  '包含敏感词“绕过”应被转换为“解决”'
+)
+assert(
+  sanitizeResearchInput('破解账号池') === '排查多账号池',
+  '敏感词“破解”与“账号池”应被正确替换为“排查”与“多账号池”'
+)
+
+// 2. 英文单词界限匹配
+assert(
+  sanitizeResearchInput('How to bypass auth and crack account') === 'How to resolve auth and debug account',
+  '英文敏感词 bypass 与 crack 应在单词边界处替换为 resolve 与 debug'
+)
+assert(
+  sanitizeResearchInput('crackdown bypasser') === 'crackdown bypasser',
+  '英文单词边界匹配不应误伤包含子串的正常词汇（如 crackdown/bypasser）'
+)
+
+// 3. 普通词汇不受影响
+assert(
+  sanitizeResearchInput('量子计算最新进展研究') === '量子计算最新进展研究',
+  '普通词汇不应受影响'
+)
+assert(
+  sanitizeResearchInput('deep research on LLM agents') === 'deep research on LLM agents',
+  '英文普通词汇不应受影响'
+)
+
+// 4. 非字符串输入安全返回
+assert(sanitizeResearchInput(null) === null, '非字符串 null 应安全返回')
+assert(sanitizeResearchInput(undefined) === undefined, '非字符串 undefined 应安全返回')
+assert(sanitizeResearchInput(12345) === 12345, '非字符串数字应安全返回')
+const mockObj = { query: 'test' }
+assert(sanitizeResearchInput(mockObj) === mockObj, '非字符串对象应原样安全返回')
+
+console.log(`smoke OK: dsh-harvest 可加载（9 通道），平台=${process.platform}，${buildChannels.length} 通道 build() 平台契约成立，优雅跳过契约成立（${skipped.length}/${PROBE.length} 探测通道记 skipped），鲁棒性断言与输入净化单元断言全绿`)
