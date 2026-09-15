@@ -12,7 +12,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { name, inject, apply } from '../lib/index.js'
 import { BACKENDS, scoutChannel } from '../lib/backends.js'
-import { extractOne } from '../lib/extract.js'
+import { extractOne, decodeBuffer } from '../lib/extract.js'
 import { httpGetText } from '../lib/http.js'
 
 function assert(cond, msg) {
@@ -108,4 +108,23 @@ const skipped = results.filter((r) => !r.ok)
 assert(skipped.some((s) => /unknown platform/.test(s.reason)), '注入的未知通道必须进入 skipped（优雅跳过契约）')
 assert(skipped.every((s) => typeof s.reason === 'string' && s.reason.length > 0), 'skipped 条目应携带非空原因')
 
-console.log(`smoke OK: dsh-harvest 可加载（9 通道），平台=${process.platform}，${buildChannels.length} 通道 build() 平台契约成立，优雅跳过契约成立（${skipped.length}/${PROBE.length} 探测通道记 skipped）`)
+// —— T-03-3 鲁棒性改进断言（scout 模糊映射 + 编码修复）——
+// 1. scout 模糊映射：测试 scoutChannel('zhihu', 'test', 1) 能够成功调用并返回（不报错）
+try {
+  const zhihuResults = await scoutChannel('zhihu', 'test', 1)
+  assert(Array.isArray(zhihuResults), 'scoutChannel("zhihu", ...) 应返回数组')
+} catch (e) {
+  assert(false, `scoutChannel('zhihu', 'test', 1) 不应抛错: ${e?.message ?? e}`)
+}
+
+// 2. 编码修复（伪造测试）：创建一个简单的 GBK 编码数据 Buffer，调用 decodeBuffer 验证解码后字符正确
+// GBK 编码: "中文测试" -> 0xD6 0xD0 0xCE 0xC4 0xB2 0xE2 0xCA 0xD4
+const gbkHtml = Buffer.concat([
+  Buffer.from('<html><head><meta charset="gbk"></head><body>'),
+  Buffer.from([0xD6, 0xD0, 0xCE, 0xC4, 0xB2, 0xE2, 0xCA, 0xD4]),
+  Buffer.from('</body></html>')
+])
+const decodedText = decodeBuffer(gbkHtml)
+assert(decodedText.includes('中文测试'), `GBK 解码后应包含 "中文测试"，实为: ${decodedText}`)
+
+console.log(`smoke OK: dsh-harvest 可加载（9 通道），平台=${process.platform}，${buildChannels.length} 通道 build() 平台契约成立，优雅跳过契约成立（${skipped.length}/${PROBE.length} 探测通道记 skipped），鲁棒性断言全绿`)
