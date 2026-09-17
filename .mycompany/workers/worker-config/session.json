@@ -11,6 +11,15 @@
       "deliverable": "README.md、DESIGN.md diff（96 insertions/23 deletions，commit a4a25e5）",
       "verification": "git diff 渲染审查——命令块按平台分开、$env:USERPROFILE vs ~ 正确、无 15775/C:\\\\Users 硬编码残留、架构段通道数 6→9 与 bili 补齐；零代码改动未触碰 node",
       "limitation": "修复进行中的 mcporter/opencli 通道 mac/linux 描述基于审计 B-04 修复方案 4.1 的 argv 直调形态，fix-shell-layer 落地后若形态有变需同步回看这两处措辞"
+    },
+    {
+      "task_id": "docs-attribution-11channels",
+      "date": "2026-09-18",
+      "dag": "expand-channels",
+      "branch": "feat/expand-channels-tg-linuxdo",
+      "conclusion": "全面完成 Telegram 与 LINUX DO 深度情报通道接入的开源署名与 11 通道全链路文档更新。在 ATTRIBUTION.md 规范补充 Telethon、mcp-telegram、LINUX DO 社区、linuxdo-mcp、curl_cffi 的作者、协议、用途与主页链接；在 README.md 中将通道数统一更新为 11 通道，补充平台枚举参数、架构树说明及 TELEGRAM_PYTHON / LINUXDO_COOKIE 等环境变量配置表与防御跳过说明；更新 skills/harvest/SKILL.md 覆盖全部 11 通道；全量 smoke 测试通过且契约成立。",
+      "deliverable": "ATTRIBUTION.md, README.md, skills/harvest/SKILL.md, experience.md, session.json",
+      "verification": "node test/smoke.mjs 输出 11 通道全绿通过；git diff 审查无格式或语法错误。"
     }
   ]
 }

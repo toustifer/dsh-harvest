@@ -15,3 +15,11 @@
 ### 复用建议（跨域可复用）
 - 三平台安装手册模板：按平台分 `<code block>`（PowerShell vs bash）+ 平台差异一句话 + link 依赖绝对路径占位符 + 「未装即 [SKIP]」的失败语义说明。
 - 通道可用矩阵列设计：Windows | macOS/Linux 双列 + 「修复后形态」标注 + 单独「修复说明」段落承载正在进行中的变更，避免表格塞不下。
+
+## 2026-09-18 — docs-attribution-11channels（更新 Telegram 与 LINUX DO 深度情报通道文档及开源署名）
+
+### 学到的模式
+- **收割者工具的开源署名（Attribution）纪律**：多源广度信息收割工具的信源和通道生态依赖于广大开源项目与技术社区。完善的 `ATTRIBUTION.md` 应当涵盖项目名、作者/社区、协议类型、具体用途说明以及官方主页/仓库链接。本次对 Telegram (Telethon / mcp-telegram) 与 LINUX DO (linux.do / linuxdo-mcp / curl_cffi) 的细致致谢与归属声明，建立了清晰的边界，并对社区文化保持敬畏。
+- **通道数量与枚举的全局原子化对齐**：9 通道扩展为 11 通道时，必须跨文档统一口径，覆盖 `README.md`（数据通道表、CLI 获取表、用法示例、架构树、归属段落）、`skills/harvest/SKILL.md`（技能元数据 description、分类清单、四步管道）与 `DESIGN.md`。通过 `git diff` 与全文检索确保不遗漏陈旧数字。
+- **环境配置与防御性跳过策略文档化**：新增通道若依赖本地 Python 解释器或认证 Cookie/Session（如 `TELEGRAM_PYTHON`、`TELEGRAM_MCP_PATH`、`LINUXDO_COOKIE` 等），文档中需明确列出默认推导规则、环境变量覆盖方式与两阶段防御跳过行为（probe 未通过直接 skip，不弹错不阻断整体 scout），降低用户运维与配置心智负担。
+

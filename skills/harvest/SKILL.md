@@ -1,6 +1,6 @@
 ---
 name: harvest
-description: DSH 原生多平台调研流水线插件：支持 harvest_scout（多平台发现）、harvest_deep_research（深度研报）、harvest_extract（正文穿透抓取）、harvest_verify（交叉验证）与 harvest_audit（可信度审计）。当用户需要全网调研、深度调研、跨平台检索、信源核查与可信度分析时使用此技能。
+description: DSH 原生多平台调研流水线插件：支持 harvest_scout（覆盖 GitHub、Web/Exa、Twitter、Reddit、小红书、YouTube、B站、V2EX、LinkedIn、Telegram、LINUX DO 11个通道并行发现）、harvest_deep_research（深度研报）、harvest_extract（正文穿透抓取）、harvest_verify（交叉验证）与 harvest_audit（可信度审计）。当用户需要全网调研、深度调研、跨平台检索、信源核查与可信度分析时使用此技能。
 whenToUse: 全网调研, 深度调研, 跨平台调研, harvest, 多平台检索, 交叉验证, 信源审计
 ---
 
@@ -11,9 +11,18 @@ whenToUse: 全网调研, 深度调研, 跨平台调研, harvest, 多平台检索
 - 用户要「全网 / 全面 / 深度 / 跨平台」调研某主题
 - 需要多平台广度发现 + 一手原文抓取 + 交叉验证 + 可信度审计
 
+## 支持的数据通道（共 11 通道）
+
+`harvest_scout` 默认并发扫描以下 11 个平台通道，也可通过 `platforms` 参数按需组合：
+- **代码与技术**：`github`
+- **通用网页搜索**：`web` (Exa/Tavily)
+- **社交媒体与网络**：`twitter` · `reddit` · `xiaohongshu` · `linkedin`
+- **视频媒体**：`youtube` · `bilibili`
+- **极客社区与即时情报**：`v2ex` · `linuxdo` · `telegram`
+
 ## 四步管道
 
-1. **scout** — 先 `harvest_scout`，拿 5-15 条候选源；不足 3 个平台成功时，用内置 `web_search` 补齐 web 角度。
+1. **scout** — 先 `harvest_scout`（默认并发全扫描或指定 `platforms`），拿 5-15 条候选源；不足 3 个平台成功时，用内置 `web_search` 补齐 web 角度。
 2. **extract** — 对候选源 `harvest_extract`；`paywall`/`unreachable` 直接标记，不重试、不假装拿到。
 3. **verify** — 把关键结论写成断言，`harvest_verify` 交叉验证；搜索摘要 ≠ 一手来源，须比原文。
 4. **audit** — `harvest_audit` 出五维矩阵，🔴 弃用的来源不得引用。
@@ -24,3 +33,4 @@ whenToUse: 全网调研, 深度调研, 跨平台调研, harvest, 多平台检索
 - 每条来源必须带可点击 URL。
 - 平台失败记 `[SKIP:platform]` 后立刻继续，不阻塞。
 - 最终报告必须含来源可信度矩阵。
+
