@@ -18,14 +18,14 @@ cordis 插件 + 原生工具注册（同 dsh-strategic-core 模式）。零 `@de
 
 | 工具 | 职责 | 关键行为 |
 |------|------|---------|
-| harvest_scout | 多平台并行发现 | 9 通道并行，失败记 `[SKIP]` 不阻塞 |
+| harvest_scout | 多平台并行发现 | 11 通道并行，失败记 `[SKIP]` 不阻塞 |
 | harvest_extract | 逐条抓取 | 直抓 → r.jina.ai 升级 → 标记 paywall/unreachable，不静默丢弃 |
 | harvest_verify | 交叉验证 | 关键词命中 → verified/weak/unverified |
 | harvest_audit | 可信度审计 | 五维启发式评分 → trust/caution/discard |
 
 ## 数据通道（平台可用矩阵）
 
-9 条通道，进程调用形态按平台分支（详见下）：
+11 条通道，进程调用形态按平台分支（详见下）：
 
 | 通道 | 底层 | Windows | macOS / Linux |
 |------|------|---------|---------------|
@@ -36,6 +36,8 @@ cordis 插件 + 原生工具注册（同 dsh-strategic-core 模式）。零 `@de
 | YouTube | `yt-dlp ytsearchN:` | ✅ 原生 | ✅ 原生（未装 `[SKIP]`） |
 | B站 | `bili search`（bili-cli，第三方） | ✅ 原生 | ✅ 原生（未装 `[SKIP]`） |
 | V2EX | `curl v2ex.com/api/topics/hot.json` | ✅ HTTP 直连 + 兜底 | ✅ HTTP 直连 + curl 兜底 |
+| Telegram | `mcp-telegram` (Telethon) | ✅ 直接 argv 调用 Python | ✅ 直接 argv 调用 Python |
+| LINUX DO | `linuxdo-mcp` (curl_cffi) | ✅ 直接 argv 调用 Python | ✅ 直接 argv 调用 Python |
 
 - **进程调用形态**：Windows 上 `mcporter`/`opencli` 是 npm 全局生成的 `.ps1`/`.cmd` 垫片（Node `execFile` 无法直接执行），经 `powershell.exe` 以绝对路径调用，垫片目录可用环境变量 `DSH_HARVEST_BIN` 覆盖；macOS/Linux 上它们是可执行脚本/二进制，直接 `execFile` argv 直调，不经任何 shell 壳（修复后形态）。
 - **优雅跳过契约**：未装 CLI / 桥接未连 / 解析失败 → 通道抛错 → 记 `[SKIP]`，绝不阻塞整条 scout；三平台一致。

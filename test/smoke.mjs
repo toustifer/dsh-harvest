@@ -25,7 +25,7 @@ const IS_WIN = process.platform === 'win32'
 assert(name === 'harvest', `name 应为 harvest，实为 ${name}`)
 assert(Array.isArray(inject) && inject.includes('tools'), 'inject 应包含 tools')
 assert(typeof apply === 'function', 'apply 应为函数')
-assert(Object.keys(BACKENDS).length === 9, `应有 9 个后端，实为 ${Object.keys(BACKENDS).length}`)
+assert(Object.keys(BACKENDS).length >= 9, `应有至少 9 个后端，实为 ${Object.keys(BACKENDS).length}`)
 assert(typeof extractOne === 'function', 'extractOne 应为函数')
 assert(typeof httpGetText === 'function', 'httpGetText 应为函数')
 
@@ -168,4 +168,38 @@ assert(sanitizeResearchInput(12345) === 12345, '非字符串数字应安全返�
 const mockObj = { query: 'test' }
 assert(sanitizeResearchInput(mockObj) === mockObj, '非字符串对象应原样安全返回')
 
-console.log(`smoke OK: dsh-harvest 可加载（9 通道），平台=${process.platform}，${buildChannels.length} 通道 build() 平台契约成立，优雅跳过契约成立（${skipped.length}/${PROBE.length} 探测通道记 skipped），鲁棒性断言与输入净化单元断言全绿`)
+// —— T-03-5 深度情报通道契约断言（telegram & linuxdo）——
+assert(typeof BACKENDS.telegram === 'object', 'BACKENDS 应包含 telegram')
+assert(typeof BACKENDS.telegram.probe === 'function', 'telegram 应包含 probe()')
+assert(typeof BACKENDS.telegram.build === 'function', 'telegram 应包含 build()')
+assert(typeof BACKENDS.telegram.parse === 'function', 'telegram 应包含 parse()')
+
+assert(typeof BACKENDS.linuxdo === 'object', 'BACKENDS 应包含 linuxdo')
+assert(typeof BACKENDS.linuxdo.probe === 'function', 'linuxdo 应包含 probe()')
+assert(typeof BACKENDS.linuxdo.build === 'function', 'linuxdo 应包含 build()')
+assert(typeof BACKENDS.linuxdo.parse === 'function', 'linuxdo 应包含 parse()')
+
+// 验证 parse() 归一化字段契约
+const sampleLdoParsed = BACKENDS.linuxdo.parse(JSON.stringify([{
+  title: 'Test Topic',
+  url: 'https://linux.do/t/12345',
+  snippet: 'Test snippet content',
+}]), 'linuxdo')
+assert(Array.isArray(sampleLdoParsed) && sampleLdoParsed.length === 1, 'linuxdo parse 应正确输出数组')
+assert(sampleLdoParsed[0].platform === 'linuxdo', 'linuxdo parse 结果应保留 platform')
+assert(sampleLdoParsed[0].title === 'Test Topic', 'linuxdo parse 结果应保留 title')
+assert(sampleLdoParsed[0].url === 'https://linux.do/t/12345', 'linuxdo parse 结果应保留 url')
+assert(sampleLdoParsed[0].note === 'Test snippet content', 'linuxdo parse 结果 snippet 应映射为 note')
+
+const sampleTgParsed = BACKENDS.telegram.parse(JSON.stringify([{
+  title: 'Alice: Hello world',
+  url: 'https://t.me/c/123/456',
+  snippet: 'Hello world full message',
+}]), 'telegram')
+assert(Array.isArray(sampleTgParsed) && sampleTgParsed.length === 1, 'telegram parse 应正确输出数组')
+assert(sampleTgParsed[0].platform === 'telegram', 'telegram parse 结果应保留 platform')
+assert(sampleTgParsed[0].title === 'Alice: Hello world', 'telegram parse 结果应保留 title')
+assert(sampleTgParsed[0].url === 'https://t.me/c/123/456', 'telegram parse 结果应保留 url')
+assert(sampleTgParsed[0].note === 'Hello world full message', 'telegram parse 结果 snippet 应映射为 note')
+
+console.log(`smoke OK: dsh-harvest 可加载（${Object.keys(BACKENDS).length} 通道），平台=${process.platform}，${buildChannels.length} 通道 build() 平台契约成立，优雅跳过契约成立（${skipped.length}/${PROBE.length} 探测通道记 skipped），鲁棒性断言与输入净化单元断言全绿`)

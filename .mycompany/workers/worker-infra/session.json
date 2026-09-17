@@ -18,6 +18,13 @@
       "evidence": "node --check 4/4 绿；node test/smoke.mjs 绿（含 ci-matrix 已提交的 T-03 平台契约断言：非 win32 build() 无 powershell/.ps1 泄漏、优雅跳过契约成立）；win32 分支用 Object.defineProperty(process,'platform',{value:'win32'}) + URL 查询串破 ESM 缓存模拟：5 通道保留 PS 垫片、无 15775、psq 转义正确；curl 兜底真实运行验证（macOS 本机）：本地 302 重定向环（fetch 失败 → curl 兜底拿到 302）+ 无服务端口（合并错误证实走 curl 分支非 powershell）。",
       "limitation": "win32 为代码级论证（本机 macOS）；http.js win32 PS 分支仅在模拟下验证参数构造与分支选择（错误前缀 ps: 证明选中 PS 分支），未在真实 Windows 上执行 powershell.exe。三平台 CI 矩阵由 ci-matrix 任务（worker-ops）负责验证闭环。",
       "ci_evidence_followup": "push feat/cross-platform c5a9f22..156723b（SSH，正常追加无 force）后 CI 自动重跑：run 33169109461 → 三平台全绿（macos-latest ✓ 8s / windows-latest ✓ 45s / ubuntu-latest ✓ 6s）。smoke 输出：darwin / win32 / linux 均为『8 通道 build() 平台契约成立，优雅跳过契约成立（4/4 探测通道记 skipped）』——windows-latest 真实运行 win32 分支（PS 垫片保留 + 无 15775 硬编码断言通过），补全验收标准第 4 条的 CI 侧两平台证据。run 链接：https://github.com/toustifer/dsh-harvest/actions/runs/33169109461"
+    },
+    {
+      "task_id": "expand-channels-tg-linuxdo",
+      "date": "2026-09-18",
+      "dag": "expand-channels",
+      "branch": "feat/expand-channels-tg-linuxdo",
+      "conclusion": "在 dsh-harvest 插件的 harvest_scout 中成功新增 telegram 与 linuxdo 两个深度情报通道。支持环境变量覆盖（TELEGRAM_PYTHON / TELEGRAM_MCP_PATH / LINUXDO_PYTHON / LINUXDO_MCP_PATH），遵循 probe/build/parse 结构与两阶段跳过策略；index.js platforms 枚举及说明同步扩充至 11 通道；全量 smoke 测试与真实环境探测均已通过。"
     }
   ]
 }

@@ -30,3 +30,12 @@
 ### 复用建议
 - 平台分支进程调用：一个 `shimRun`/`buildXxx` 入口收敛分支 + 每个通道声明两形态（PS 串 / Unix argv）→ 可移植到任何「npm 全局装法在 win 生成 .ps1、unix 生成脚本」的 CLI 封装。
 - 跨平台双路 HTTP 兜底模板：fetch 优先 → 平台分支 fallback（win=PS 系统代理 / unix=curl 环境代理）→ 输出解析按平台布局分割。curl 兜底默认自动读 https_proxy/http_proxy，无需额外代码。
+
+## 2026-09-18 — expand-channels-tg-linuxdo（新增 Telegram 与 LINUX DO 深度情报通道）
+
+### 学到的模式
+- **专用虚拟环境与本地 MCP 探针结合**：Telegram (Telethon) 与 LINUX DO (curl_cffi) 具备独特的网络与认证依赖。通过直接调用宿主既有 Python 虚拟环境（或通过环境变量 `TELEGRAM_PYTHON` / `LINUXDO_PYTHON` / `TELEGRAM_MCP_PATH` / `LINUXDO_MCP_PATH` 覆盖），以轻量级内联 Python 脚本形式桥接数据检索，既保证了零额外 npm 运行时依赖，又实现了免额外守护进程常驻的高效查询。
+- **两阶段防御性跳过（Probe + Execution Catch）**：
+  1. 静态环境探测（`probe()`）：快速检查 Python 解析器与凭证存储（Telegram session 文件 / LINUX DO `.env` 与缓存 cookie），未就绪时立即返回 `false`，由 `scoutChannel` 记录跳过，避免无效进程派生。
+  2. 动态异常降级：会话失效（如 Telegram 未授权/登录态过期、Discourse 401/403/Cloudflare 拦截）在 Python 检索层捕获并抛出具象错误，通过 Node `execFile` 向上冒泡后被 `scoutChannel` 捕获记入 `skipped[]`，绝不阻断其他公开通道的检索。
+- **字段归一化规范**：遵循 `{ platform, title, url, note }` 核心契约。Telegram 提取 `sender: text_snippet` 与链接，LINUX DO 提取帖子标题与 `blurb` 摘要，保持全管道 `scout → extract → verify → audit` 的数据流结构完全一致。

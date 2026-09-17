@@ -30,7 +30,7 @@
 
 ## 🔌 数据通道
 
-9 条数据通道，任一通道失败（CLI 未装 / 浏览器桥接未连 / 解析失败）记 `[SKIP]`，不阻塞整条流水线。
+11 条数据通道，任一通道失败（CLI 未装 / 虚拟环境缺失 / 未登录 / 解析失败）记 `[SKIP]`，不阻塞整条流水线。
 
 | 通道 | 底层 | 类型 | macOS / Linux 可用性 |
 |------|------|------|----------------------|
@@ -41,6 +41,8 @@
 | YouTube | `yt-dlp ytsearchN:` | 视频 | ✅ 三平台原生可用，未装即 `[SKIP]` |
 | B站 | `bili search`(bili-cli，第三方) | 视频 | ✅ 三平台原生可用，未装即 `[SKIP]` |
 | V2EX | `curl v2ex.com/api/topics/hot.json` | 社区 | ✅ 三平台可用（HTTP 直连 + curl 兜底） |
+| Telegram | `mcp-telegram` (Telethon) | 社群/即时通讯 | ✅ 支持 `TELEGRAM_PYTHON` / `TELEGRAM_MCP_PATH`，未登录即 `[SKIP]` |
+| LINUX DO | `linuxdo-mcp` (curl_cffi) | 极客社区 | ✅ 支持 `LINUXDO_PYTHON` / `LINUXDO_MCP_PATH`，无 Cookie 即 `[SKIP]` |
 
 > **修复说明**：`mcporter` / `opencli` 在 Windows 上以 npm 全局安装生成的 `.ps1`/`.cmd` 垫片存在（Node `execFile` 无法直接执行，需经 PowerShell 调用）；在 macOS/Linux 上它们是**可执行脚本/二进制，可直接 argv 调用**。本次跨平台修复（并行进行中，见 DESIGN.md 数据通道矩阵）即按该目标形态实现，文档按修复后的形态描述。macOS/Linux 上未装对应 CLI 时通道记 `[SKIP]`，与 Windows 行为一致。
 
@@ -58,6 +60,8 @@
 | `opencli` | Twitter · Reddit · 小红书 | `npm i -g opencli` | `npm i -g opencli` | 同 macOS |
 | `yt-dlp` | YouTube | 官方 `yt-dlp.exe` / winget | `brew install yt-dlp` | `pip install yt-dlp` / 发行版包 |
 | `bili-cli` | B站 | GitHub 发布页 `bili.exe` | brew / 源码构建 | 源码构建 |
+| `mcp-telegram` | Telegram 搜索 | 本地虚拟环境或 `TELEGRAM_PYTHON` | 本地虚拟环境或 `TELEGRAM_PYTHON` | 本地虚拟环境或 `TELEGRAM_PYTHON` |
+| `linuxdo-mcp` | LINUX DO 搜索 | 本地虚拟环境或 `LINUXDO_PYTHON` | 本地虚拟环境或 `LINUXDO_PYTHON` | 本地虚拟环境或 `LINUXDO_PYTHON` |
 
 > **bili-cli 重要提示**：`bili` 是**第三方非官方** bilibili 客户端（Go 单二进制），非哔哩哔哩官方发布；只从可信来源（如项目自己的 GitHub 发布页）获取并自行核验，注意其登录方式与合规边界。
 > **Windows npm 全局**：`mcporter`/`opencli` 经 npm 全局安装，垫片生成在 npm 全局 bin 目录（`npm prefix -g` 可查）；若该目录非常规位置，设环境变量 `DSH_HARVEST_BIN` 指向它以覆盖默认查找。
