@@ -30,3 +30,16 @@
   `smoke OK: 平台=darwin，8 通道 build() 平台契约成立，优雅跳过契约成立（4/4 探测通道记 skipped）`。
 - 绊线完整闭环被验证：pre-fix lib → 红（5 通道 powershell 泄漏）；fix 落地 → 绿。断言不是「永远红」的坏断言。
 - CI 实跑（push 触发，run 33168647280，feat/cross-platform）：三平台均跑起 —— ubuntu/macos 走非 win32 断言、windows 走 win32 断言（证明 IS_WIN 分支与 pwsh shell 均正确）；Syntax check 三平台全绿；Smoke 在 pre-fix lib 上按预期红（绊线），随 fix-shell-layer 提交推送到分支后应转绿。
+
+## 2026-09-18 — expand-channels-tg-linuxdo（11 通道冒烟断言固化与全量回归验证）
+
+### 做了什么
+- `test/smoke.mjs`：
+  - **严格 11 通道契约断言**：`assert(Object.keys(BACKENDS).length === 11)`，并完整遍历断言包含 `EXPECTED_CHANNELS` 11 个通道；同时断言具备 `build()` 的通道数严格为 10（除 v2ex 为 fetchUrl）。
+  - **深度情报通道契约与边界断言**：针对 `telegram` 与 `linuxdo`，断言 `probe`、`build`、`parse` 方法存在；断言 `probe()` 安全返回布尔值无异常；断言 `build(q, n)` 正确传入 `-c`、query 与 limit；断言 `parse` 正确完成字段映射（`title`, `url`, `snippet` -> `note`, `platform`）并兼容包装对象（`{ data: [...] }` / `{ results: [...] }`），且对空串、非 JSON 文本、空对象、无有效 title/url 等边界输入安全返回空数组，绝不崩溃。
+  - **优雅跳过契约扩展**：将探测集扩展为 `['github', 'youtube', 'bilibili', 'telegram', 'linuxdo', '__definitely_missing_channel__']`，断言聚合层 `Promise.all + 逐通道 try/catch` 整体不抛错，各通道结果携带 `ok` 标识，失败通道携带具体原因，无论本地环境是否已登录/配置，均优雅跳过或成功返回，绝不阻塞整个流程。
+
+### 学到的模式
+- **动态插件通道扩展的断言阶梯设计**：通道数量由 9 扩展至 11 时，不能仅做宽松的 `>=` 判断，必须严格以全量枚举建立硬约束，并在冒烟脚本中将所有平台 key 显式遍历，避免通道漏挂载或拼写错误。
+- **两阶段失败安全验证（Fail-safe Probe & Execution）**：对于依赖本地复杂环境（如 Python venv、认证 Cookie、Telegram Session）的外部通道，冒烟测试必须同时验证 probe 的纯函数安全性与 scoutChannel 执行期的异常捕获降级，确保在 CI、本地未配置及已配置多类异构环境下均能优雅运行。
+- **全量测试与回归验证零妥协**：确保不仅单元逻辑跑通，整个系统的 `node test/smoke.mjs` 终端输出符合期望无任何 warning/failure。

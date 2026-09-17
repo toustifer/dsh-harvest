@@ -21,11 +21,24 @@ function assert(cond, msg) {
 
 const IS_WIN = process.platform === 'win32'
 
-// —— 加载契约（既有断言：inject/apply/9 通道计数/模块函数存在性，保持不变）——
+// —— 加载契约（严格 11 通道契约断言 + 模块函数存在性）——
 assert(name === 'harvest', `name 应为 harvest，实为 ${name}`)
 assert(Array.isArray(inject) && inject.includes('tools'), 'inject 应包含 tools')
 assert(typeof apply === 'function', 'apply 应为函数')
-assert(Object.keys(BACKENDS).length >= 9, `应有至少 9 个后端，实为 ${Object.keys(BACKENDS).length}`)
+
+// 严格断言 11 通道总数与枚举契约（包含 telegram 与 linuxdo）
+const EXPECTED_CHANNELS = [
+  'github', 'web', 'twitter', 'reddit', 'xiaohongshu',
+  'youtube', 'bilibili', 'v2ex', 'linkedin', 'telegram', 'linuxdo'
+]
+assert(
+  Object.keys(BACKENDS).length === 11,
+  `BACKENDS 通道总数应严格为 11，实为 ${Object.keys(BACKENDS).length}`
+)
+for (const ch of EXPECTED_CHANNELS) {
+  assert(Boolean(BACKENDS[ch]), `BACKENDS 应包含通道 ${ch}`)
+}
+
 assert(typeof extractOne === 'function', 'extractOne 应为函数')
 assert(typeof httpGetText === 'function', 'httpGetText 应为函数')
 
@@ -52,8 +65,9 @@ assert(typeof registeredSkill.content === 'string' && registeredSkill.content.le
 assert(registeredTools.length >= 5, `apply 应注册至少 5 个工具，实为 ${registeredTools.length}`)
 
 // —— T-03-1 平台探测断言（审计 BLOK-1/BLOK-2：Windows 独占假定不得回归）——
+// 11 通道中除 v2ex (fetchUrl) 外，其余 10 个通道均提供 build()
 const buildChannels = Object.keys(BACKENDS).filter((id) => typeof BACKENDS[id].build === 'function')
-assert(buildChannels.length >= 8, `应有至少 8 个通道具备 build()，实为 ${buildChannels.length}`)
+assert(buildChannels.length === 10, `应有恰好 10 个通道具备 build()，实为 ${buildChannels.length}`)
 
 // argv 直调契约（审计 4.1/4.4：进程调用走 { file, args }，不拼 shell 字符串）
 for (const id of buildChannels) {
@@ -78,17 +92,18 @@ if (IS_WIN) {
   assert(leaked.length === 0, `非 win32 下 build() 仍引用 Windows 垫片(powershell/.ps1): ${leaked.join(',')}（目标形态=审计 4.1 argv 直调；若 fix-shell-layer 未提交，此为预期红，随其提交转绿）`)
 }
 
-// —— T-03-2 「无 CLI 环境冒烟」：优雅跳过契约（审计 T-03 / 4.4）——
+// —— T-03-2 「无 CLI / 未配置环境冒烟」：优雅跳过契约（审计 T-03 / 4.4）——
 // 与 harvest_scout 相同的 Promise.all + 逐通道 try/catch 聚合语义：任一通道失败
-// （CLI 缺失 ENOENT / 空结果 / 未知通道）→ 记 skipped，聚合整体不抛。
-// 探测集：github（CI runner 无认证 gh → 失败进 skipped；本机装有 gh 则真实执行=ok）、
-// youtube/bilibili（CI runner 无 yt-dlp/bili → ENOENT 进 skipped；注意通道 id 是 bilibili，
-// 其 build() 内的二进制名才是 bili）、__definitely_missing_channel__（未知通道，
-// 确定性验证 skipped 路径）。
-const PROBE = ['github', 'youtube', 'bilibili', '__definitely_missing_channel__']
+// （CLI 缺失 ENOENT / 鉴权未配置 / 会话过期 / 空结果 / 未知通道）→ 记 skipped，聚合整体不抛。
+// 探测集覆盖公开 CLI、深度情报通道与注入的未知通道：
+// - github（CI runner 无认证 gh → 空结果进 skipped；本机装有 gh 则执行）
+// - youtube/bilibili（CI runner 无 yt-dlp/bili → ENOENT 进 skipped）
+// - telegram/linuxdo（未授权或无依赖时抛错进 skipped，已授权时返回数据）
+// - __definitely_missing_channel__（未知通道确定性进入 skipped）
+const PROBE = ['github', 'youtube', 'bilibili', 'telegram', 'linuxdo', '__definitely_missing_channel__']
 const aggregateAction = () => Promise.all(PROBE.map(async (id) => {
   try {
-    const items = await scoutChannel(id, 'smoke ci matrix probe', 2)
+    const items = await scoutChannel(id, 'smoke ci matrix probe', 1)
     return { ok: true, id, items }
   } catch (e) {
     return { ok: false, id, reason: String(e?.message ?? e) }
@@ -104,9 +119,15 @@ try {
 assert(aggregateError === null, `聚合层（Promise.all + 逐通道 try/catch）整体不应抛，实为 ${String(aggregateError)}`)
 assert(Array.isArray(results) && results.length === PROBE.length, '聚合结果数应为探测通道数')
 assert(results.every((r) => typeof r.ok === 'boolean'), '每个探测通道结果应带 ok 标记')
+for (const r of results) {
+  if (r.ok) {
+    assert(Array.isArray(r.items), `${r.id} 成功时 items 应为数组`)
+  } else {
+    assert(typeof r.reason === 'string' && r.reason.length > 0, `${r.id} 失败时应包含非空 reason`)
+  }
+}
 const skipped = results.filter((r) => !r.ok)
 assert(skipped.some((s) => /unknown platform/.test(s.reason)), '注入的未知通道必须进入 skipped（优雅跳过契约）')
-assert(skipped.every((s) => typeof s.reason === 'string' && s.reason.length > 0), 'skipped 条目应携带非空原因')
 
 // —— T-03-3 鲁棒性改进断言（scout 模糊映射 + 编码修复）——
 // 1. scout 模糊映射：测试 scoutChannel('zhihu', 'test', 1) 在 CI/无 CLI 环境下：
@@ -168,7 +189,8 @@ assert(sanitizeResearchInput(12345) === 12345, '非字符串数字应安全返�
 const mockObj = { query: 'test' }
 assert(sanitizeResearchInput(mockObj) === mockObj, '非字符串对象应原样安全返回')
 
-// —— T-03-5 深度情报通道契约断言（telegram & linuxdo）——
+// —— T-03-5 深度情报通道契约与边界断言（telegram & linuxdo）——
+// 1. 结构与方法完整性
 assert(typeof BACKENDS.telegram === 'object', 'BACKENDS 应包含 telegram')
 assert(typeof BACKENDS.telegram.probe === 'function', 'telegram 应包含 probe()')
 assert(typeof BACKENDS.telegram.build === 'function', 'telegram 应包含 build()')
@@ -179,18 +201,29 @@ assert(typeof BACKENDS.linuxdo.probe === 'function', 'linuxdo 应包含 probe()'
 assert(typeof BACKENDS.linuxdo.build === 'function', 'linuxdo 应包含 build()')
 assert(typeof BACKENDS.linuxdo.parse === 'function', 'linuxdo 应包含 parse()')
 
-// 验证 parse() 归一化字段契约
-const sampleLdoParsed = BACKENDS.linuxdo.parse(JSON.stringify([{
-  title: 'Test Topic',
-  url: 'https://linux.do/t/12345',
-  snippet: 'Test snippet content',
-}]), 'linuxdo')
-assert(Array.isArray(sampleLdoParsed) && sampleLdoParsed.length === 1, 'linuxdo parse 应正确输出数组')
-assert(sampleLdoParsed[0].platform === 'linuxdo', 'linuxdo parse 结果应保留 platform')
-assert(sampleLdoParsed[0].title === 'Test Topic', 'linuxdo parse 结果应保留 title')
-assert(sampleLdoParsed[0].url === 'https://linux.do/t/12345', 'linuxdo parse 结果应保留 url')
-assert(sampleLdoParsed[0].note === 'Test snippet content', 'linuxdo parse 结果 snippet 应映射为 note')
+// 2. probe() 契约：返回布尔值，不抛异常
+const tgProbe = BACKENDS.telegram.probe()
+assert(typeof tgProbe === 'boolean', `telegram.probe() 应返回 boolean，实为 ${typeof tgProbe}`)
+const ldoProbe = BACKENDS.linuxdo.probe()
+assert(typeof ldoProbe === 'boolean', `linuxdo.probe() 应返回 boolean，实为 ${typeof ldoProbe}`)
 
+// 3. build() 参数映射与边界
+const sampleTgBuild = BACKENDS.telegram.build('deepseek reasoning', 5)
+assert(typeof sampleTgBuild.file === 'string' && sampleTgBuild.file.length > 0, 'telegram build() 返回 file 应为非空字符串')
+assert(Array.isArray(sampleTgBuild.args), 'telegram build() 返回 args 应为数组')
+assert(sampleTgBuild.args.includes('-c'), 'telegram build() args 应包含 -c 参数')
+assert(sampleTgBuild.args.includes('deepseek reasoning'), 'telegram build() args 应包含 query')
+assert(sampleTgBuild.args.includes('5'), 'telegram build() args 应包含 limit 字符串')
+
+const sampleLdoBuild = BACKENDS.linuxdo.build('linuxdo architecture', 8)
+assert(typeof sampleLdoBuild.file === 'string' && sampleLdoBuild.file.length > 0, 'linuxdo build() 返回 file 应为非空字符串')
+assert(Array.isArray(sampleLdoBuild.args), 'linuxdo build() 返回 args 应为数组')
+assert(sampleLdoBuild.args.includes('-c'), 'linuxdo build() args 应包含 -c 参数')
+assert(sampleLdoBuild.args.includes('linuxdo architecture'), 'linuxdo build() args 应包含 query')
+assert(sampleLdoBuild.args.includes('8'), 'linuxdo build() args 应包含 limit 字符串')
+
+// 4. parse() 归一化字段映射与防御性边界断言
+// (1) telegram 字段映射
 const sampleTgParsed = BACKENDS.telegram.parse(JSON.stringify([{
   title: 'Alice: Hello world',
   url: 'https://t.me/c/123/456',
@@ -202,4 +235,39 @@ assert(sampleTgParsed[0].title === 'Alice: Hello world', 'telegram parse 结果�
 assert(sampleTgParsed[0].url === 'https://t.me/c/123/456', 'telegram parse 结果应保留 url')
 assert(sampleTgParsed[0].note === 'Hello world full message', 'telegram parse 结果 snippet 应映射为 note')
 
-console.log(`smoke OK: dsh-harvest 可加载（${Object.keys(BACKENDS).length} 通道），平台=${process.platform}，${buildChannels.length} 通道 build() 平台契约成立，优雅跳过契约成立（${skipped.length}/${PROBE.length} 探测通道记 skipped），鲁棒性断言与输入净化单元断言全绿`)
+// telegram 包装格式兼容 ({ data: [...] })
+const sampleTgWrapped = BACKENDS.telegram.parse(JSON.stringify({
+  data: [{ title: 'Bob: Wrapped Msg', url: 'https://t.me/c/789/101', snippet: 'wrapped note' }]
+}), 'telegram')
+assert(Array.isArray(sampleTgWrapped) && sampleTgWrapped.length === 1, 'telegram parse 应支持 { data: [...] } 包装格式')
+assert(sampleTgWrapped[0].title === 'Bob: Wrapped Msg', '包装条目 title 正确解构')
+
+// (2) linuxdo 字段映射
+const sampleLdoParsed = BACKENDS.linuxdo.parse(JSON.stringify([{
+  title: 'Test Topic',
+  url: 'https://linux.do/t/12345',
+  snippet: 'Test snippet content',
+}]), 'linuxdo')
+assert(Array.isArray(sampleLdoParsed) && sampleLdoParsed.length === 1, 'linuxdo parse 应正确输出数组')
+assert(sampleLdoParsed[0].platform === 'linuxdo', 'linuxdo parse 结果应保留 platform')
+assert(sampleLdoParsed[0].title === 'Test Topic', 'linuxdo parse 结果应保留 title')
+assert(sampleLdoParsed[0].url === 'https://linux.do/t/12345', 'linuxdo parse 结果应保留 url')
+assert(sampleLdoParsed[0].note === 'Test snippet content', 'linuxdo parse 结果 snippet 应映射为 note')
+
+// linuxdo 包装格式兼容 ({ results: [...] })
+const sampleLdoWrapped = BACKENDS.linuxdo.parse(JSON.stringify({
+  results: [{ title: 'Discourse Topic', url: 'https://linux.do/t/999', snippet: 'blurb note' }]
+}), 'linuxdo')
+assert(Array.isArray(sampleLdoWrapped) && sampleLdoWrapped.length === 1, 'linuxdo parse 应支持 { results: [...] } 包装格式')
+assert(sampleLdoWrapped[0].note === 'blurb note', '包装条目 snippet 正确映射为 note')
+
+// (3) parse() 容错与防御性边界测试（空串、非 JSON、空对象、无有效 title/url）
+for (const ch of ['telegram', 'linuxdo']) {
+  assert(BACKENDS[ch].parse('', ch).length === 0, `${ch} parse 空串应返回空数组`)
+  assert(BACKENDS[ch].parse('invalid json text', ch).length === 0, `${ch} parse 非 JSON 文本应返回空数组`)
+  assert(BACKENDS[ch].parse('{}', ch).length === 0, `${ch} parse 空对象应返回空数组`)
+  assert(BACKENDS[ch].parse('[]', ch).length === 0, `${ch} parse 空数组应返回空数组`)
+  assert(BACKENDS[ch].parse(JSON.stringify([{ foo: 'bar' }]), ch).length === 0, `${ch} parse 无有效 title/url 应过滤排除`)
+}
+
+console.log(`smoke OK: dsh-harvest 可加载（${Object.keys(BACKENDS).length} 通道全量合规），平台=${process.platform}，${buildChannels.length} 通道 build() 平台契约成立，优雅跳过契约成立（${skipped.length}/${PROBE.length} 探测通道记 skipped），鲁棒性断言、深度情报通道契约与输入净化单元断言全绿`)
