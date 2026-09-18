@@ -39,3 +39,15 @@
   1. 静态环境探测（`probe()`）：快速检查 Python 解析器与凭证存储（Telegram session 文件 / LINUX DO `.env` 与缓存 cookie），未就绪时立即返回 `false`，由 `scoutChannel` 记录跳过，避免无效进程派生。
   2. 动态异常降级：会话失效（如 Telegram 未授权/登录态过期、Discourse 401/403/Cloudflare 拦截）在 Python 检索层捕获并抛出具象错误，通过 Node `execFile` 向上冒泡后被 `scoutChannel` 捕获记入 `skipped[]`，绝不阻断其他公开通道的检索。
 - **字段归一化规范**：遵循 `{ platform, title, url, note }` 核心契约。Telegram 提取 `sender: text_snippet` 与链接，LINUX DO 提取帖子标题与 `blurb` 摘要，保持全管道 `scout → extract → verify → audit` 的数据流结构完全一致。
+
+## 2026-09-18 — impl-linuxdo-ratelimit（为 LINUX DO 采集信道增加速率限制、短时缓存与 429 熔断避让）
+
+### 学到的模式
+- **单通道串行节流排队与防雪崩重试**：针对对频次极其敏感的论坛（Discourse / Cloudflare），不能仅在请求发起前做简单的 `setTimeout`，因为并发并发射时会导致瞬间打满并发限制。采用 Promise 串行队列（`linuxdoExecutionQueue`）+ `lastRequestTime` 记录，保证任意两个真实出网请求的时间间隔严格 $\ge$ 2.5s。
+- **双重检查（Double-Checked Locking）在异步节流中的应用**：在排队进入节流临界区之前先查一次缓存与熔断状态，进入临界区获得执行权后再查一次。这一模式完美化解了「并发多个相同 query 触发多次网络请求」以及「排队期间前序任务触发 429 导致后续任务雪崩受罚」的痛点。
+- **零依赖内存 LRU + TTL 查询缓存**：利用 JavaScript 原生 `Map` 保持插入顺序的特性，在 `get` 命中时重置到末尾、超过容量限制（100条）时通过 `cache.keys().next().value` 淘汰最早未使用的 key，再配合 `Date.now() - entry.time > cacheTtlMs` 过期判断，实现了零第三方库的高性能 LRU + TTL 缓存。
+- **429 智能避让与两阶段熔断拦截**：
+  1. 捕获阶段：正则匹配 `429|Too Many Requests`，触发后设置 `circuitBreakerUntil = now + 60s`，打印友好的 warn 日志并抛出带剩余冷却秒数的错误；
+  2. 拦截阶段：在 `scoutChannel` 入口处（甚至在 `probe()` 之前）提前判断熔断状态，处于冷却期时直接抛出 `linuxdo: 触发 429 频控保护，正在冷却避让中（剩余 Xs），自动跳过本次网络请求`，由上层优雅记入 `skipped[]`，防止反复重试对目标站点雪崩连击。
+- **测试友好性（Testability）设计**：导出 `linuxdoThrottleState`、`resetLinuxDoThrottle`、`getLinuxDoCache` 与 `setLinuxDoCache`，使上层或测试套件在单测中可以自由重置状态、微调间隔参数、模拟 429 与验证缓存命中，不破坏原有 `smoke.mjs` 契约。
+

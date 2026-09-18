@@ -25,6 +25,15 @@
       "dag": "expand-channels",
       "branch": "feat/expand-channels-tg-linuxdo",
       "conclusion": "在 dsh-harvest 插件的 harvest_scout 中成功新增 telegram 与 linuxdo 两个深度情报通道。支持环境变量覆盖（TELEGRAM_PYTHON / TELEGRAM_MCP_PATH / LINUXDO_PYTHON / LINUXDO_MCP_PATH），遵循 probe/build/parse 结构与两阶段跳过策略；index.js platforms 枚举及说明同步扩充至 11 通道；全量 smoke 测试与真实环境探测均已通过。"
+    },
+    {
+      "task_id": "impl-linuxdo-ratelimit",
+      "date": "2026-09-18",
+      "dag": "rate-limit-linuxdo",
+      "branch": "feat/rate-limit-linuxdo",
+      "conclusion": "在 lib/backends.js 中为 LINUX DO 通道实现最小调用间隔节流器（2.5s 串行 Promise 队列）、零依赖内存 LRU+TTL 查询缓存（3分钟默认过期，最大100条容量）以及 429 智能避让与 60s 熔断冷却窗口。导出 linuxdoThrottleState、resetLinuxDoThrottle、getLinuxDoCache、setLinuxDoCache 辅助对象及函数；全量 smoke 测试与自定义边界测试全绿。",
+      "deliverable": "lib/backends.js",
+      "verification": "node --check lib/backends.js 通过；node test/smoke.mjs 11 通道冒烟全绿；针对缓存命中、LRU淘汰、TTL失效、429熔断冷却与并发2.5s节流的单测全绿通过。"
     }
   ]
 }
