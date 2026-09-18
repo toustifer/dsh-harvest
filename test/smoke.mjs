@@ -11,7 +11,14 @@
 import os from 'node:os'
 import path from 'node:path'
 import { name, inject, apply, sanitizeResearchInput } from '../lib/index.js'
-import { BACKENDS, scoutChannel } from '../lib/backends.js'
+import {
+  BACKENDS,
+  scoutChannel,
+  linuxdoThrottleState,
+  resetLinuxDoThrottle,
+  getLinuxDoCache,
+  setLinuxDoCache,
+} from '../lib/backends.js'
 import { extractOne, decodeBuffer } from '../lib/extract.js'
 import { httpGetText } from '../lib/http.js'
 
@@ -270,4 +277,82 @@ for (const ch of ['telegram', 'linuxdo']) {
   assert(BACKENDS[ch].parse(JSON.stringify([{ foo: 'bar' }]), ch).length === 0, `${ch} parse 无有效 title/url 应过滤排除`)
 }
 
-console.log(`smoke OK: dsh-harvest 可加载（${Object.keys(BACKENDS).length} 通道全量合规），平台=${process.platform}，${buildChannels.length} 通道 build() 平台契约成立，优雅跳过契约成立（${skipped.length}/${PROBE.length} 探测通道记 skipped），鲁棒性断言、深度情报通道契约与输入净化单元断言全绿`)
+// —— T-03-6 LINUX DO 频控节流、短时缓存与 429 熔断窗口断言 ——
+// 0. 重置初始状态
+resetLinuxDoThrottle()
+assert(linuxdoThrottleState.isCircuitBreaking === false, '初始状态下 isCircuitBreaking 应为 false')
+assert(linuxdoThrottleState.cache.size === 0, '初始状态下 cache 应为空')
+
+// 1. 验证缓存写入与命中，以及深拷贝防污染
+const sampleItems = [{ title: 'LINUX DO 热帖', url: 'https://linux.do/t/100', platform: 'linuxdo' }]
+setLinuxDoCache('linuxdo topic', 5, sampleItems)
+const cachedItems = getLinuxDoCache('linuxdo topic', 5)
+assert(Array.isArray(cachedItems) && cachedItems.length === 1, 'getLinuxDoCache 命中后应返回数组')
+assert(cachedItems[0].title === 'LINUX DO 热帖', '缓存命中返回项 title 一致')
+assert(cachedItems[0].url === 'https://linux.do/t/100', '缓存命中返回项 url 一致')
+
+// 深拷贝断言：修改读取到的对象以及修改外部源数组，均不影响后续缓存读取
+cachedItems[0].title = '本地篡改标题'
+sampleItems[0].title = '外部篡改标题'
+const cachedItemsSecond = getLinuxDoCache('linuxdo topic', 5)
+assert(cachedItemsSecond[0].title === 'LINUX DO 热帖', 'getLinuxDoCache 应返回深拷贝数据副本，不受外部修改污染')
+
+// 防御性：空列表不写入缓存
+setLinuxDoCache('empty-query', 5, [])
+assert(getLinuxDoCache('empty-query', 5) === null, '空 items 不应写入缓存')
+
+// 2. 验证 TTL 超时淘汰
+resetLinuxDoThrottle()
+setLinuxDoCache('ttl-test', 5, [{ title: 'TTL 待过期', url: 'https://linux.do/t/200' }])
+const ttlKey = 'ttl-test:::5'
+assert(linuxdoThrottleState.cache.has(ttlKey), '缓存项 ttl-test 应存在')
+// 人工推移时间戳模拟超出 cacheTtlMs
+linuxdoThrottleState.cache.get(ttlKey).time -= (linuxdoThrottleState.cacheTtlMs + 1000)
+assert(getLinuxDoCache('ttl-test', 5) === null, 'TTL 过期项在 getLinuxDoCache 时应返回 null')
+assert(!linuxdoThrottleState.cache.has(ttlKey), 'TTL 过期项应被自动从 Map 中淘汰移除')
+
+// 3. 验证 LRU 顺序调整与淘汰
+resetLinuxDoThrottle({ maxCacheSize: 2 })
+setLinuxDoCache('lru1', 1, [{ title: 'item1', url: 'https://linux.do/t/1' }])
+setLinuxDoCache('lru2', 1, [{ title: 'item2', url: 'https://linux.do/t/2' }])
+assert(linuxdoThrottleState.cache.size === 2, '当前缓存数应为 2')
+
+// 访问 lru1，使其刷新至 LRU 队列最新端
+const accessedLru1 = getLinuxDoCache('lru1', 1)
+assert(accessedLru1 !== null, 'lru1 读取应命中')
+
+// 插入第三个条目 lru3，超出 maxCacheSize=2，应淘汰最久未访问的 lru2
+setLinuxDoCache('lru3', 1, [{ title: 'item3', url: 'https://linux.do/t/3' }])
+assert(linuxdoThrottleState.cache.size === 2, '淘汰后缓存大小仍为 maxCacheSize 2')
+assert(getLinuxDoCache('lru2', 1) === null, '最久未访问的 lru2 应被 LRU 机制淘汰')
+assert(getLinuxDoCache('lru1', 1) !== null, '刷新过的 lru1 应被保留')
+assert(getLinuxDoCache('lru3', 1) !== null, '新插入的 lru3 应被保留')
+
+// 4. 验证 429 熔断冷却拦截
+resetLinuxDoThrottle()
+linuxdoThrottleState.circuitBreakerUntil = Date.now() + 5000
+assert(linuxdoThrottleState.isCircuitBreaking === true, '熔断窗口期内 isCircuitBreaking 应为 true')
+
+let breakerErr = null
+try {
+  await scoutChannel('linuxdo', 'test', 1)
+} catch (e) {
+  breakerErr = e
+}
+assert(breakerErr !== null, '熔断冷却期内调用 scoutChannel("linuxdo", ...) 应抛出熔断异常')
+assert(
+  breakerErr.message.includes('触发 429 频控保护'),
+  `抛错应包含“触发 429 频控保护”，实为: ${breakerErr.message}`
+)
+assert(
+  /剩余 \d+s/.test(breakerErr.message),
+  `抛错应包含“剩余 Xs”冷却秒数提示，实为: ${breakerErr.message}`
+)
+
+// 5. 恢复初始状态，确保不污染后续流程与测试环境
+resetLinuxDoThrottle()
+assert(linuxdoThrottleState.isCircuitBreaking === false, '重置后 isCircuitBreaking 应恢复为 false')
+assert(linuxdoThrottleState.circuitBreakerUntil === 0, '重置后 circuitBreakerUntil 应清零')
+assert(linuxdoThrottleState.cache.size === 0, '重置后 cache 应清空')
+
+console.log(`smoke OK: dsh-harvest 可加载（${Object.keys(BACKENDS).length} 通道全量合规），平台=${process.platform}，${buildChannels.length} 通道 build() 平台契约成立，优雅跳过契约成立（${skipped.length}/${PROBE.length} 探测通道记 skipped），鲁棒性断言、深度情报通道契约、输入净化与 LINUX DO 频控缓存熔断断言全绿`)

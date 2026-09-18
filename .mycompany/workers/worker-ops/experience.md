@@ -43,3 +43,20 @@
 - **动态插件通道扩展的断言阶梯设计**：通道数量由 9 扩展至 11 时，不能仅做宽松的 `>=` 判断，必须严格以全量枚举建立硬约束，并在冒烟脚本中将所有平台 key 显式遍历，避免通道漏挂载或拼写错误。
 - **两阶段失败安全验证（Fail-safe Probe & Execution）**：对于依赖本地复杂环境（如 Python venv、认证 Cookie、Telegram Session）的外部通道，冒烟测试必须同时验证 probe 的纯函数安全性与 scoutChannel 执行期的异常捕获降级，确保在 CI、本地未配置及已配置多类异构环境下均能优雅运行。
 - **全量测试与回归验证零妥协**：确保不仅单元逻辑跑通，整个系统的 `node test/smoke.mjs` 终端输出符合期望无任何 warning/failure。
+
+## 2026-09-18 — test-linuxdo-ratelimit（LINUX DO 频控节流、短时缓存与 429 熔断单测固化）
+
+### 做了什么
+- `test/smoke.mjs`：
+  - 新增 `T-03-6` 断言块，导入 `linuxdoThrottleState`、`resetLinuxDoThrottle`、`getLinuxDoCache`、`setLinuxDoCache`。
+  - **缓存命中与深拷贝隔离**：验证 `setLinuxDoCache` 写入后能被 `getLinuxDoCache` 精确命中并还原字段；验证返回对象与输入数据为深拷贝副本，修改返回值或原数据均不污染内部 Map 缓存；验证空数组输入防御性忽略。
+  - **TTL 超时淘汰**：模拟时间戳推移超出 `cacheTtlMs`，验证条目在 `getLinuxDoCache` 时返回 `null` 且被动清除出 Map。
+  - **LRU 淘汰顺序**：配置 `maxCacheSize: 2`，验证在存满后读取旧条目可刷新至队尾，新条目插入时能精准淘汰最久未访问的项。
+  - **429 熔断拦截**：人工设置 `linuxdoThrottleState.circuitBreakerUntil` 为未来时点，调用 `scoutChannel('linuxdo', 'test', 1)` 验证被前置拦截抛错，错误信息包含「触发 429 频控保护」与「剩余 Xs」冷却提示。
+  - **测试状态隔离与重置**：测试结束后统一调用 `resetLinuxDoThrottle()`，验证 `isCircuitBreaking` 恢复 `false`、熔断时间与缓存彻底清空，确保不污染后续流程。
+- 执行 `node test/smoke.mjs` 冒烟与 `node --check` 语法全绿。
+
+### 学到的模式
+- **防污染单测夹具生命周期（Test Fixture Isolation）**：针对模块级单例状态（如全局节流队列、熔断标志与内存缓存），测试前后必须提供确定性的 `reset` 入口，并在测试开始前与用例结束时双重重置，防止单测因执行顺序或前序用例的残存状态产生偶发 Flaky Test。
+- **确定性时钟与 TTL/LRU 测试设计**：测试 TTL 与 LRU 不需要真正在测试中 `sleep(3分钟)`。通过设计可配置覆盖项（如 `resetLinuxDoThrottle({ cacheTtlMs, maxCacheSize })`）或直接微调 entry 的 `time` 属性，能够实现毫秒级执行、100% 确定性的边界淘汰验证。
+- **深拷贝返回值契约防护**：缓存层返回业务数据时，必须返回深拷贝或防御性副本，避免业务调用方在后续处理中就地修改属性引发隐蔽的数据污染与难以排查的状态漂移。
