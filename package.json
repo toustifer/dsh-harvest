@@ -1,5 +1,5 @@
 {
-  "name": "dsh-harvest",
+  "name": "@stifer/dsh-harvest",
   "version": "0.2.0",
   "description": "DSH 原生多平台调研流水线插件：harvest_scout(多平台发现)/harvest_deep_research(深度研报)/harvest_extract(穿透抓取)/harvest_verify(交叉验证)/harvest_audit(可信度审计)。源于自研 omni-scope 方法论，自包含。",
   "keywords": [
@@ -20,6 +20,14 @@
     ".": "./lib/index.js",
     "./package.json": "./package.json"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/toustifer/dsh-harvest.git"
+  },
+  "homepage": "https://github.com/toustifer/dsh-harvest#readme",
+  "bugs": {
+    "url": "https://github.com/toustifer/dsh-harvest/issues"
+  },
   "files": [
     "lib",
     "instructions",
@@ -30,7 +38,8 @@
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
-    }
+    },
+    "category": "Research & Analysis"
   },
   "license": "MIT"
 }
