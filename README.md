@@ -9,7 +9,8 @@
   <img src="https://img.shields.io/badge/version-0.2.0-blue" alt="version"/>
   <img src="https://img.shields.io/badge/self--contained-2ea44f" alt="self-contained"/>
   <img src="https://img.shields.io/badge/runtime-Node%20ESM-339933" alt="Node ESM"/>
-  <img src="https://img.shields.io/badge/target%20platforms-Win%20%7C%20macOS%20%7C%20Linux-lightgrey" alt="target platforms"/>
+  <img src="https://img.shields.io/badge/target%20platforms-Win%20%7C%20macOS%20%7C%20Linux-lightgrey" alt="target platforms"/><br/><br/>
+  <a href="https://dshfind.com/zh/plugins/toustifer/dsh-harvest?ref=badge"><img alt="dshfind" src="https://dshfind.com/api/badge/toustifer/dsh-harvest?lang=zh" /></a>
 </p>
 
 `dsh-harvest` 让 DeepSeek Harness 里的智能体**像开联合收割机一样做调研**:一次撒网多个平台、穿透反爬抓原文、跨源交叉验证、最后给来源打分。任一数据通道挂了也不会卡住整条流水线。
