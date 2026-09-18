@@ -70,43 +70,60 @@
 > **Windows npm 全局**：`mcporter`/`opencli` 经 npm 全局安装，垫片生成在 npm 全局 bin 目录（`npm prefix -g` 可查）；若该目录非常规位置，设环境变量 `DSH_HARVEST_BIN` 指向它以覆盖默认查找。
 > **macOS 提示**：若 `dsh web` 从 Finder / LaunchAgent 启动，进程 PATH 通常只有系统目录，`/opt/homebrew/bin` 下的 `gh`/`yt-dlp` 取不到（即便已装也会 `[SKIP]`）；从终端启动，或在启动脚本里显式把用户 bin 目录加进 PATH（如 `export PATH="/opt/homebrew/bin:$PATH"`）。
 
-## 📦 安装（DSH 原生）
+## 📦 安装接入（推荐 DSH 原生市场与一键安装）
 
-### Windows（PowerShell）
+### 方式一：DSH 社区市场 / CLI 安装（首推）
+
+`dsh-harvest` 已经正式发布至 npm 全球注册表及 DSH 合作市场：
+
+1. **社区市场一键安装**：
+   - 打开 DSH 插件市场 / 社区合作提供方，搜索 `@stifer/dsh-harvest` 点击安装即可。
+2. **CLI 命令行一键添加**：
+   ```bash
+   dsh plugin --profile web add @stifer/dsh-harvest
+   ```
+3. **配置启用**（在 `<dshHome>/profiles/web/cordis.patch.yml` 中追加）：
+   ```yaml
+   - insert:
+       - id: harvest
+         name: '@stifer/dsh-harvest'
+   ```
+
+---
+
+### 方式二：源码本地开发安装（Windows / macOS / Linux）
+
+#### Windows（PowerShell）
 
 ```powershell
 # 1. 克隆到 DSH 插件目录
-git clone https://github.com/<you>/dsh-harvest.git $env:USERPROFILE\.dsh\plugins\dsh-harvest
+git clone https://github.com/toustifer/dsh-harvest.git $env:USERPROFILE\.dsh\plugins\dsh-harvest
 
 # 2. 在 web profile 的 package.json 里加 link 依赖 + bundles 条目
-#    "dependencies": { "dsh-harvest": "link:C:/Users/<you>/.dsh/plugins/dsh-harvest" },
-#    "dsh.profile.bundles": [ ..., "dsh-harvest" ]
+#    "dependencies": { "@stifer/dsh-harvest": "link:C:/Users/<you>/.dsh/plugins/dsh-harvest" },
+#    "dsh.profile.bundles": [ ..., "@stifer/dsh-harvest" ]
 #    （link 路径用正斜杠，把 <you> 换成你的用户名）
 
-# 3. 链接
+# 3. 链接与热载
 cd $env:USERPROFILE\.dsh\profiles\web
 pnpm install
-
-# 4. 重启
 dsh web
 ```
 
-### macOS / Linux（bash / zsh）
+#### macOS / Linux（bash / zsh）
 
 ```bash
 # 1. 克隆到 DSH 插件目录
-git clone https://github.com/<you>/dsh-harvest.git ~/.dsh/plugins/dsh-harvest
+git clone https://github.com/toustifer/dsh-harvest.git ~/.dsh/plugins/dsh-harvest
 
 # 2. 在 web profile 的 package.json 里加 link 依赖 + bundles 条目
-#    macOS:  "dependencies": { "dsh-harvest": "link:/Users/<you>/.dsh/plugins/dsh-harvest" }
-#    Linux:  "dependencies": { "dsh-harvest": "link:/home/<you>/.dsh/plugins/dsh-harvest" }
-#    "dsh.profile.bundles": [ ..., "dsh-harvest" ]
+#    macOS:  "dependencies": { "@stifer/dsh-harvest": "link:/Users/<you>/.dsh/plugins/dsh-harvest" }
+#    Linux:  "dependencies": { "@stifer/dsh-harvest": "link:/home/<you>/.dsh/plugins/dsh-harvest" }
+#    "dsh.profile.bundles": [ ..., "@stifer/dsh-harvest" ]
 
-# 3. 链接
+# 3. 链接与热载
 cd ~/.dsh/profiles/web
 pnpm install
-
-# 4. 重启
 dsh web
 ```
 
